@@ -19,9 +19,7 @@ function ratio(value: number, base: number) {
 export function FunnelCard() {
   const query = useFunnel();
   const data = query.data;
-
-  const baseValue = data?.pageViews ?? 0;
-  const barBaseValue = data?.registrations ?? 1;
+  const baseValue = data?.pageViews ?? 1;
   const stages: Stage[] = data
     ? [
         { key: "registrations", label: "تسجيلات", value: data.registrations },
@@ -55,10 +53,10 @@ export function FunnelCard() {
 
           <ol className="space-y-2.5">
             {stages.map((stage, index) => {
-              const pct = ratio(stage.value, barBaseValue);
+              const pct = ratio(stage.value, baseValue);
               const next = stages[index + 1];
               const drop =
-                next && stage.value > 0
+                next && stage.value >= next.value
                   ? Math.round(((stage.value - next.value) / stage.value) * 100)
                   : null;
               return (
