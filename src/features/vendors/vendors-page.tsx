@@ -1,7 +1,6 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,61 +13,62 @@ import { ActionDialog } from "@/components/modals/action-dialog";
 import { TableSkeleton } from "@/components/state/table-skeleton";
 import { ErrorState } from "@/components/state/async-states";
 import { StatusBadge } from "@/components/status/status-badge";
-import { adminApi } from "@/lib/api/admin-client";
+import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
-import { adminPaths } from "@/lib/api/paths";
+import { adminApi } from "@/lib/api/admin-client";
+import { withQuery } from "@/lib/api/paths";
 import { queryKeys } from "@/lib/api/query-keys";
-import type { VendorPage } from "@/lib/api/types";
-import { formatDate, localizedText } from "@/lib/formatters";
+import type { UserPage } from "@/lib/api/types";
+import { formatDate, formatName } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
-const vendorStatuses = [
-  { label: "قيد المراجعة", value: "PENDING" },
-  { label: "معتمد", value: "APPROVED" },
+const userStatuses = [
+  { label: "قيد الانتظار", value: "PENDING" },
+  { label: "نشط", value: "ACTIVE" },
   { label: "موقوف", value: "SUSPENDED" },
-  { label: "مرفوض", value: "REJECTED" },
-  { label: "مغلق", value: "CLOSED" },
+  { label: "محذوف", value: "DELETED" },
 ];
 
-type PendingVendorAction = {
-  vendorId: string;
-  vendorName: string;
-  status: "APPROVED" | "SUSPENDED";
+type PendingUserAction = {
+  userId: string;
+  userLabel: string;
+  status: "ACTIVE" | "SUSPENDED";
 };
 
 export default function VendorsPage() {
   const searchParams = useSearchParams();
-  const [pendingAction, setPendingAction] = useState<PendingVendorAction | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingUserAction | null>(null);
   const queryParams = {
-    q: searchParams.get("q") ?? undefined,
+    type: "seller",
     status: searchParams.get("status") ?? undefined,
     cursor: searchParams.get("cursor") ?? undefined,
     limit: "20",
   };
   const queryClient = useQueryClient();
 
-  const vendors = useQuery({
-    queryKey: queryKeys.vendors(queryParams),
-    queryFn: () => adminApi<VendorPage>(adminPaths.vendors(queryParams)),
+  const sellers = useQuery({
+    queryKey: queryKeys.users(queryParams),
+    queryFn: () =>
+      adminApi<UserPage>(withQuery("/api/admin/admin/users", queryParams)),
   });
 
   const updateStatus = useMutation({
     mutationFn: ({
-      vendorId,
+      userId,
       status,
       reason,
     }: {
-      vendorId: string;
-      status: "APPROVED" | "REJECTED" | "SUSPENDED";
+      userId: string;
+      status: string;
       reason?: string;
     }) =>
-      adminApi(adminPaths.vendorStatus(vendorId), {
+      adminApi(`/api/admin/admin/users/${userId}/status`, {
         method: "PATCH",
         body: { status, reason },
       }),
     onSuccess: async () => {
       toast.success("تم تحديث حالة البائع");
-      await queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.overview(30) });
     },
     onError: (error) => {
@@ -80,151 +80,110 @@ export default function VendorsPage() {
     <div className="space-y-6">
       <PageHeader
         title="البائعون"
-        description="مراجعة حالة البائعين، عدد المنتجات والأعضاء، الاعتمادات، وبيانات المتجر."
+        description="حسابات البائعين (الأشخاص) المسجلين بالمنصة وإيقاف أو إعادة تنشيط الحسابات. لإدارة المتاجر نفسها انتقل إلى صفحة المتاجر."
       />
 
       <TableToolbar
-        statusOptions={vendorStatuses}
+        statusOptions={userStatuses}
       />
 
-      {vendors.isLoading ? (
+      {sellers.isLoading ? (
         <TableSkeleton />
-      ) : vendors.isError ? (
-        <ErrorState message={vendors.error.message} />
+      ) : sellers.isError ? (
+        <ErrorState message={sellers.error.message} />
       ) : (
         <>
           <CursorDataTable
-            data={vendors.data?.data ?? []}
-            getRowKey={(vendor) => vendor.publicId}
+            data={sellers.data?.data ?? []}
+            getRowKey={(user) => user.publicId}
             columns={[
               {
-                id: "vendor",
+                id: "seller",
                 header: "البائع",
-                cell: (vendor) => (
+                cell: (user) => (
                   <div>
                     <div className="flex items-center gap-1">
-                      <Link
-                        href={`/vendors/${vendor.publicId}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {localizedText(vendor.displayName, vendor.legalName, "ar")}
-                      </Link>
-                      <CopyButton value={vendor.publicId} />
+                      <span className="font-medium text-ink-strong">
+                        {formatName(user)}
+                      </span>
+                      <CopyButton value={user.publicId} />
                     </div>
-                    <div className="text-xs text-ink-muted">{vendor.legalName}</div>
-                    <div className="text-xs text-ink-muted">{vendor.email ?? vendor.slug}</div>
+                    <div className="text-xs text-ink-muted">{user.email}</div>
+                    <div className="text-xs text-ink-muted">{user.phone ?? "-"}</div>
                   </div>
                 ),
               },
               {
                 id: "status",
                 header: "الحالة",
-                cell: (vendor) => <StatusBadge status={vendor.status} />,
+                cell: (user) => <StatusBadge status={user.status} />,
               },
               {
-                id: "type",
-                header: "النوع",
-                cell: (vendor) => (
+                id: "activity",
+                header: "النشاط",
+                cell: (user) => (
                   <div className="text-sm text-ink-strong">
-                    <div>{vendor.storeType ?? "-"}</div>
-                    <div>{vendor.phone ?? "-"}</div>
-                  </div>
-                ),
-              },
-              {
-                id: "counts",
-                header: "الأعداد",
-                cell: (vendor) => (
-                  <div className="text-sm text-ink-strong">
-                    <div>{vendor._count?.products ?? 0} منتجات</div>
-                    <div>{vendor._count?.members ?? 0} أعضاء</div>
-                  </div>
-                ),
-              },
-              {
-                id: "dates",
-                header: "التواريخ",
-                cell: (vendor) => (
-                  <div className="text-sm text-ink-strong">
-                    <div>تم الإنشاء {formatDate(vendor.createdAt)}</div>
-                    <div>تم الاعتماد {formatDate(vendor.approvedAt)}</div>
+                    <div>تم الإنشاء {formatDate(user.createdAt)}</div>
+                    <div>آخر دخول {formatDate(user.lastLoginAt)}</div>
                   </div>
                 ),
               },
               {
                 id: "actions",
                 header: "إجراءات",
-                cell: (vendor) => (
-                  <div className="flex flex-wrap gap-2">
-                    <button
+                cell: (user) => {
+                  const nextStatus =
+                    user.status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED";
+                  return (
+                    <Button
                       type="button"
-                      disabled={updateStatus.isPending || vendor.status === "APPROVED"}
+                      size="sm"
+                      variant="secondary"
+                      disabled={updateStatus.isPending}
                       onClick={() =>
                         setPendingAction({
-                          vendorId: vendor.publicId,
-                          vendorName: vendor.legalName ?? vendor.slug ?? vendor.publicId,
-                          status: "APPROVED",
+                          userId: user.publicId,
+                          userLabel: user.email ?? user.publicId,
+                          status: nextStatus,
                         })
                       }
                       className={cn(
-                        "rounded-md border px-2.5 py-1 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50",
-                        "border-success/30 text-success hover:bg-success-soft",
+                        nextStatus === "SUSPENDED"
+                          ? "border-destructive/30 text-destructive hover:bg-destructive-soft"
+                          : "border-success/30 text-success hover:bg-success-soft",
                       )}
                     >
-                      اعتماد
-                    </button>
-                    <button
-                      type="button"
-                      disabled={updateStatus.isPending || vendor.status === "SUSPENDED"}
-                      onClick={() =>
-                        setPendingAction({
-                          vendorId: vendor.publicId,
-                          vendorName: vendor.legalName ?? vendor.slug ?? vendor.publicId,
-                          status: "SUSPENDED",
-                        })
-                      }
-                      className={cn(
-                        "rounded-md border px-2.5 py-1 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50",
-                        "border-destructive/30 text-destructive hover:bg-destructive-soft",
-                      )}
-                    >
-                      إيقاف
-                    </button>
-                  </div>
-                ),
+                      {nextStatus === "SUSPENDED" ? "إيقاف" : "إعادة تنشيط"}
+                    </Button>
+                  );
+                },
               },
             ]}
           />
           <CursorPager
-            nextCursor={vendors.data?.nextCursor}
-            hasMore={vendors.data?.hasMore}
+            nextCursor={sellers.data?.nextCursor}
+            hasMore={sellers.data?.hasMore}
           />
         </>
       )}
 
       <ActionDialog
         open={Boolean(pendingAction)}
-        title={pendingAction?.status === "APPROVED" ? "اعتماد البائع" : "إيقاف البائع"}
+        title={pendingAction?.status === "SUSPENDED" ? "إيقاف البائع" : "إعادة تنشيط البائع"}
         description={
           pendingAction
-            ? `${pendingAction.status === "APPROVED" ? "سيتم اعتماد" : "سيتم إيقاف"} ${pendingAction.vendorName}. سيتم تسجيل العملية في لوحة الإدارة.`
+            ? `${pendingAction.status === "SUSPENDED" ? "سيتم إيقاف" : "سيتم إعادة تنشيط"} ${pendingAction.userLabel}.`
             : ""
         }
-        confirmLabel={pendingAction?.status === "APPROVED" ? "اعتماد" : "إيقاف"}
-        variant={pendingAction?.status === "APPROVED" ? "success" : "danger"}
+        confirmLabel={pendingAction?.status === "SUSPENDED" ? "إيقاف" : "إعادة تنشيط"}
+        variant={pendingAction?.status === "SUSPENDED" ? "danger" : "success"}
         requireReason={pendingAction?.status === "SUSPENDED"}
-        reasonLabel="سبب الإيقاف"
-        reasonPlaceholder="اكتب سبب الإيقاف ليظهر في سجل التدقيق"
         disabled={updateStatus.isPending}
         onCancel={() => setPendingAction(null)}
-        onConfirm={(reason) => {
+        onConfirm={() => {
           if (!pendingAction) return;
           updateStatus.mutate(
-            {
-              vendorId: pendingAction.vendorId,
-              status: pendingAction.status,
-              reason,
-            },
+            { userId: pendingAction.userId, status: pendingAction.status },
             { onSettled: () => setPendingAction(null) },
           );
         }}

@@ -166,7 +166,7 @@ export default function ReviewsPage() {
                       البائع:{" "}
                       {review.vendor?.publicId ? (
                         <Link
-                          href={`/vendors/${review.vendor.publicId}`}
+                          href={`/stores/${review.vendor.publicId}`}
                           className="text-primary hover:underline"
                         >
                           {localizedText(review.vendor.displayName, review.vendor.publicId, "ar")}

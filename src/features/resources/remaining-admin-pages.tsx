@@ -214,7 +214,7 @@ export function UserDetailPage({ userId }: { userId: string }) {
     onSuccess: async () => {
       toast.success("تم حذف المستخدم");
       await queryClient.invalidateQueries({ queryKey: ["users"] });
-      router.push("/users");
+      router.push("/admins");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "تعذر حذف المستخدم");
@@ -271,8 +271,8 @@ export function UserDetailPage({ userId }: { userId: string }) {
         title={`ملف المستخدم: ${formatName(user)}`}
         description="عرض وتحديث بيانات الحساب والأدوار وسجل الطلبات والتحقق."
         actions={
-          <Link href="/users" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">
-            كل المستخدمين
+          <Link href="/admins" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">
+            كل المسؤولين
           </Link>
         }
       />

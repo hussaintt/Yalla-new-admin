@@ -7,17 +7,17 @@ import { adminApi } from "@/lib/api/admin-client";
 import { adminPaths } from "@/lib/api/paths";
 import type { VendorNotifyPayload, VendorNotifyResponse } from "@/lib/api/types";
 
-export function useVendorNotify(vendorId: string) {
+export function useStoreNotify(storeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: VendorNotifyPayload) =>
-      adminApi<VendorNotifyResponse>(adminPaths.vendorNotify(vendorId), {
+      adminApi<VendorNotifyResponse>(adminPaths.vendorNotify(storeId), {
         method: "POST",
         body: payload,
       }),
     onSuccess: async (data) => {
       toast.success(`تم إرسال الإشعار إلى ${data.notifiedUsersCount} مستخدم`);
-      await queryClient.invalidateQueries({ queryKey: queryKeysForVendor(vendorId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeysForStore(storeId) });
       await queryClient.invalidateQueries({ queryKey: ["vendors"] });
     },
     onError: (error) => {
@@ -28,6 +28,6 @@ export function useVendorNotify(vendorId: string) {
   });
 }
 
-function queryKeysForVendor(vendorId: string) {
-  return ["vendors", vendorId];
+function queryKeysForStore(storeId: string) {
+  return ["vendors", storeId];
 }

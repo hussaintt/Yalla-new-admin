@@ -212,7 +212,7 @@ export function SubscriptionsPage() {
                     header: "البائع",
                     cell: (row) => (
                       <Link
-                        href={`/vendors/${row.vendorId}`}
+                        href={`/stores/${row.vendorId}`}
                         className="font-medium text-primary hover:underline"
                       >
                         {row.vendorName}

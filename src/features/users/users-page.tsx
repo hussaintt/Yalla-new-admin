@@ -228,6 +228,7 @@ export default function UsersPage() {
   const searchParams = useSearchParams();
   const [pendingAction, setPendingAction] = useState<PendingUserAction | null>(null);
   const queryParams = {
+    type: "admin",
     status: searchParams.get("status") ?? undefined,
     cursor: searchParams.get("cursor") ?? undefined,
     limit: "20",
@@ -276,7 +277,7 @@ export default function UsersPage() {
         description="إدارة حسابات مسؤولي النظام وأدوارهم وصلاحياتهم وإيقاف أو إعادة تنشيط الحسابات."
         actions={
           <Link
-            href="/users/create"
+            href="/admins/create"
             className="inline-flex h-10 items-center rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:bg-primary/90"
           >
             <Plus className="size-4" />
@@ -300,7 +301,7 @@ export default function UsersPage() {
       ) : (
         <>
           <CursorDataTable
-            data={(users.data?.data ?? []).filter((user) => user.roles && user.roles.length > 0)}
+            data={users.data?.data ?? []}
             getRowKey={(user) => user.publicId}
             columns={[
               {
@@ -309,7 +310,7 @@ export default function UsersPage() {
                 cell: (user) => (
                   <div>
                     <div className="flex items-center gap-1">
-                      <Link href={`/users/${user.publicId}`} className="font-medium text-primary hover:underline">
+                      <Link href={`/admins/${user.publicId}`} className="font-medium text-primary hover:underline">
                         {formatName(user)}
                       </Link>
                       <CopyButton value={user.publicId} />

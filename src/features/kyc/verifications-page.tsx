@@ -159,7 +159,7 @@ export default function VerificationsPage() {
                         </span>
                         <div>
                           <Link
-                            href={`/vendors/${row.vendor.publicId}`}
+                            href={`/stores/${row.vendor.publicId}`}
                             className="font-medium text-primary hover:underline"
                           >
                             {localizedText(row.vendor.displayName, row.vendor.slug, "ar")}
@@ -177,7 +177,7 @@ export default function VerificationsPage() {
                         </span>
                         <div>
                           <Link
-                            href={`/users/${row.user.publicId}`}
+                            href={`/admins/${row.user.publicId}`}
                             className="font-medium text-brand-purple hover:underline"
                           >
                             {`${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || row.user.email}

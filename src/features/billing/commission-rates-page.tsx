@@ -147,7 +147,7 @@ export function CommissionRatesPage() {
                 header: "البائع المستهدف",
                 cell: (row) => (
                   row.vendorId ? (
-                    <Link href={`/vendors/${row.vendorId}`} className="font-medium text-primary hover:underline">
+                    <Link href={`/stores/${row.vendorId}`} className="font-medium text-primary hover:underline">
                       {row.vendorName ?? row.vendorId}
                     </Link>
                   ) : (

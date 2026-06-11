@@ -25,7 +25,7 @@ import type { VendorDetail, VerificationRow } from "@/lib/api/types";
 import { formatDate, localizedText } from "@/lib/formatters";
 import { useCurrentAdmin } from "@/features/auth/use-current-admin";
 import { hasPermission } from "@/lib/auth/permissions";
-import { useVendorNotify } from "@/features/vendors/use-vendor-notify";
+import { useStoreNotify } from "@/features/stores/use-store-notify";
 import { cn } from "@/lib/utils";
 
 function i18nValue(value: unknown, locale: "ar" | "en"): string {
@@ -66,7 +66,7 @@ type PendingVendorStatusAction = {
   requireReason: boolean;
 };
 
-export function VendorDetailPage({ vendorId }: { vendorId: string }) {
+export function StoreDetailPage({ vendorId }: { vendorId: string }) {
   const queryClient = useQueryClient();
   const { data: admin } = useCurrentAdmin();
   const canNotify =
@@ -76,7 +76,7 @@ export function VendorDetailPage({ vendorId }: { vendorId: string }) {
   const [pendingVendorStatus, setPendingVendorStatus] = useState<PendingVendorStatusAction | null>(null);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const notifyMutation = useVendorNotify(vendorId);
+  const notifyMutation = useStoreNotify(vendorId);
   const canEdit = hasPermission(admin, "vendors:write");
 
   const vendor = useQuery({
@@ -177,7 +177,7 @@ export function VendorDetailPage({ vendorId }: { vendorId: string }) {
     <div className="space-y-6">
       <PageHeader
         title={localizedText(vendor.data?.displayName, vendor.data?.legalName ?? vendorId, "ar")}
-        description="ملف البائع، الحالة التشغيلية، ووثائق التحقق المرتبطة بالبائع."
+        description="ملف المتجر، الحالة التشغيلية، ووثائق التحقق (KYC) المرتبطة بالمتجر."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {canNotify ? (
@@ -191,10 +191,10 @@ export function VendorDetailPage({ vendorId }: { vendorId: string }) {
               </button>
             ) : null}
             <Link
-              href="/vendors"
+              href="/stores"
               className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted"
             >
-              كل البائعين
+              كل المتاجر
             </Link>
           </div>
         }

@@ -74,7 +74,7 @@ export function CreateAdminUserPage() {
     onSuccess: async (data) => {
       toast.success(`تم إنشاء المستخدم ${data.email}`);
       await queryClient.invalidateQueries({ queryKey: ["users"] });
-      router.push("/users");
+      router.push("/admins");
     },
     onError: (error) => {
       const message =
@@ -210,7 +210,7 @@ export function CreateAdminUserPage() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => router.push("/users")}
+              onClick={() => router.push("/admins")}
               disabled={isSubmitting || mutation.isPending}
             >
               إلغاء

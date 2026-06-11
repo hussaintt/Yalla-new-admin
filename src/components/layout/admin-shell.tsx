@@ -46,13 +46,14 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "لوحة التحكم", description: "المؤشرات اليومية", icon: Home, permission: "dashboard:read", group: "core" },
-  { href: "/users", label: "المسؤولون", description: "الأدوار والصلاحيات", icon: Users, permission: "users:read", group: "core" },
-  { href: "/clients", label: "العملاء", description: "حسابات عملاء المنصة", icon: Users, permission: "users:read", group: "core" },
-  { href: "/vendors", label: "البائعون", description: "المتاجر والحالة", icon: Warehouse, permission: "vendors:read", group: "core", countKey: "vendors" },
+  { href: "/admins", label: "المسؤولون", description: "الأدوار والصلاحيات", icon: Users, permission: "users:read", group: "core" },
+  { href: "/customers", label: "العملاء", description: "حسابات عملاء المنصة", icon: Users, permission: "users:read", group: "core" },
+  { href: "/vendors", label: "البائعون", description: "حسابات البائعين", icon: Warehouse, permission: "vendors:read", group: "core" },
+  { href: "/stores", label: "المتاجر", description: "الإدارة والاعتماد والتحقق", icon: Store, permission: "vendors:read", group: "core", countKey: "vendors" },
   { href: "/verifications", label: "طلبات KYC", description: "مراجعة الوثائق", icon: ShieldCheck, permission: "kyc:review", group: "core", countKey: "verifications" },
   { href: "/products", label: "المنتجات", description: "الحالة والمحتوى", icon: PackageSearch, permission: "catalog:write", group: "market", countKey: "products" },
   { href: "/orders", label: "الطلبات", description: "البيع والتسليم", icon: ShoppingBag, permission: "orders:read", group: "market", countKey: "orders" },
-  { href: "/catalog", label: "المتاجر", description: "الكتالوج والفئات", icon: Store, permission: "catalog:write", group: "market" },
+  { href: "/catalog", label: "الكتالوج", description: "الفئات والعلامات التجارية", icon: Boxes, permission: "catalog:write", group: "market" },
   { href: "/billing", label: "العمولات ودورات الفوترة", description: "الفوترة والتسويات", icon: ReceiptText, permission: "billing:write", group: "finance", countKey: "billing" },
   { href: "/refunds", label: "الاستردادات", description: "المراجعة والاعتماد", icon: ReceiptText, permission: "refunds:write", group: "finance" },
   { href: "/shipping", label: "الشحن والتسويات", description: "المناطق والأسعار", icon: Truck, permission: "settings:write", group: "finance" },

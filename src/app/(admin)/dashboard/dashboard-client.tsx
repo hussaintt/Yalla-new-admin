@@ -23,13 +23,10 @@ import { WelcomeBanner } from "@/components/ui/welcome-banner";
 import { Button } from "@/components/ui/button";
 
 import { BillingCycleCard } from "@/components/dashboard/billing-cycle-card";
-import { FinancialChart } from "@/components/dashboard/financial-chart";
 import { FunnelCard } from "@/components/dashboard/funnel-card";
-import { RevenueTrendsChart } from "@/components/dashboard/revenue-trends-chart";
 import { KycApprovalQueue, useKycQueue } from "@/components/dashboard/kyc-approval-queue";
 
 import { ActivityFeed, useActivityFeed } from "@/components/dashboard/activity-feed";
-import { QuickActionsGrid } from "@/components/dashboard/quick-actions";
 import { TopVendorsCard } from "@/components/dashboard/top-vendors";
 import { VendorGeoCard } from "@/components/dashboard/vendor-geo";
 import { RecentVendorsTable } from "@/components/dashboard/recent-vendors-table";
@@ -223,7 +220,7 @@ export default function DashboardPage() {
       <WelcomeBanner
         title={`أهلاً ${adminName}، منصتك بتنمو بقوة`}
         description={buildWelcomeDescription(welcome.data)}
-        primaryAction={{ label: "إضافة بائع", href: "/vendors" }}
+        primaryAction={{ label: "إدارة المتاجر", href: "/stores" }}
         secondaryAction={{ label: "تصدير تقرير", href: "/reports" }}
       />
 
@@ -241,29 +238,12 @@ export default function DashboardPage() {
         ))}
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-        <SectionCard
-          title="الأداء المالي والإيرادات"
-          description="مقارنة الإيرادات والعمولات عبر آخر 6 أشهر"
-        >
-          <FinancialChart />
-        </SectionCard>
+      <section className="grid gap-5 xl:grid-cols-2">
         <SectionCard
           title="دورة الفوترة الحالية"
           description={welcome.data?.currency ?? currency}
         >
           <BillingCycleCard />
-        </SectionCard>
-      </section>
-
-      <QuickActionsGrid />
-
-      <section className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-        <SectionCard
-          title="اتجاهات الإيراد"
-          description="المبيعات وصافي البائعين وعمولة المنصة"
-        >
-          <RevenueTrendsChart />
         </SectionCard>
         <SectionCard
           title="قمع التحويل"
