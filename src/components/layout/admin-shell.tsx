@@ -2,26 +2,20 @@
 
 import {
   BadgeDollarSign,
-  Bell,
   Boxes,
   ClipboardCheck,
   FileClock,
   Globe,
-  HardDrive,
   Home,
   LogOut,
   Menu,
-  MessageSquare,
   PackageSearch,
   ReceiptText,
-  Repeat2,
-  Search,
   ShieldCheck,
   ShoppingBag,
   Store,
   Truck,
   Users,
-  Warehouse,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,9 +23,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { GlobalSearch, GlobalSearchTrigger, type GlobalSearchResult } from "@/components/ui/global-search";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { useTheme } from "@/lib/theme/use-theme";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCurrentAdmin } from "@/features/auth/use-current-admin";
 import { useSidebarCounts } from "@/features/dashboard/sidebar-counts";
@@ -50,30 +41,30 @@ type NavItem = {
   icon: React.ElementType;
   permission?: AdminPermission;
   group: "core" | "market" | "finance" | "system";
-  countKey?: "vendors" | "verifications" | "products" | "orders" | "billing" | "notifications";
+  countKey?: "vendors" | "verifications" | "products" | "orders" | "billing";
 };
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "لوحة التحكم", description: "المؤشرات اليومية", icon: Home, permission: "dashboard:read", group: "core" },
-  { href: "/users", label: "المستخدمون", description: "الحسابات والأدوار", icon: Users, permission: "users:read", group: "core" },
+  { href: "/users", label: "المسؤولون", description: "الأدوار والصلاحيات", icon: Users, permission: "users:read", group: "core" },
+  { href: "/clients", label: "العملاء", description: "حسابات عملاء المنصة", icon: Users, permission: "users:read", group: "core" },
   { href: "/vendors", label: "البائعون", description: "المتاجر والحالة", icon: Warehouse, permission: "vendors:read", group: "core", countKey: "vendors" },
   { href: "/verifications", label: "طلبات KYC", description: "مراجعة الوثائق", icon: ShieldCheck, permission: "kyc:review", group: "core", countKey: "verifications" },
   { href: "/products", label: "المنتجات", description: "الحالة والمحتوى", icon: PackageSearch, permission: "catalog:write", group: "market", countKey: "products" },
   { href: "/orders", label: "الطلبات", description: "البيع والتسليم", icon: ShoppingBag, permission: "orders:read", group: "market", countKey: "orders" },
   { href: "/catalog", label: "المتاجر", description: "الكتالوج والفئات", icon: Store, permission: "catalog:write", group: "market" },
-  { href: "/promotions", label: "كوبونات الخصم", description: "الحملات والعروض", icon: BadgeDollarSign, permission: "marketing:write", group: "market" },
   { href: "/billing", label: "العمولات ودورات الفوترة", description: "الفوترة والتسويات", icon: ReceiptText, permission: "billing:write", group: "finance", countKey: "billing" },
   { href: "/refunds", label: "الاستردادات", description: "المراجعة والاعتماد", icon: ReceiptText, permission: "refunds:write", group: "finance" },
   { href: "/shipping", label: "الشحن والتسويات", description: "المناطق والأسعار", icon: Truck, permission: "settings:write", group: "finance" },
   { href: "/payments", label: "سجل المدفوعات", description: "الحركات المالية", icon: BadgeDollarSign, permission: "payments:read", group: "finance" },
-  { href: "/subscriptions", label: "الاشتراكات", description: "الإيراد المتكرر", icon: Repeat2, permission: "subscriptions:read", group: "finance" },
-  { href: "/notifications", label: "الإشعارات", description: "إعلانات المنصة", icon: Bell, permission: "marketing:write", group: "system", countKey: "notifications" },
-  { href: "/media", label: "الوسائط والتخزين", description: "تنظيف الملفات", icon: HardDrive, permission: "media:write", group: "system" },
   { href: "/settings", label: "إعدادات المنصة", description: "الضبط العام", icon: Boxes, permission: "settings:write", group: "system" },
   { href: "/locations", label: "المواقع الجغرافية", description: "الدول والمدن والمناطق", icon: Globe, permission: "settings:write", group: "system" },
   { href: "/audit-logs", label: "سجل النشاط", description: "أثر العمليات", icon: FileClock, permission: "audit:read", group: "system" },
   { href: "/ops", label: "صحة النظام", description: "المراقبة والتشغيل", icon: ClipboardCheck, permission: "ops:read", group: "system" },
 ];
+
+// Reimport Warehouse icon separately if it was missing from original import destructured lists (wait, Warehouse is imported!)
+import { Warehouse } from "lucide-react";
 
 const groupLabels = {
   core: "إدارة المستخدمين",
@@ -89,31 +80,17 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function navItemsToSearchResults(items: NavItem[]): GlobalSearchResult[] {
-  return items.map((item) => ({
-    id: item.href,
-    label: item.label,
-    hint: item.description,
-    group: "الصفحات",
-    href: item.href,
-  }));
-}
-
 function SidebarContent({
   pathname,
   items,
-  query,
   counts,
   countsLoading,
-  onQueryChange,
   onNavigate,
 }: {
   pathname: string;
   items: NavItem[];
-  query: string;
   counts: Partial<Record<NonNullable<NavItem["countKey"]>, number>>;
   countsLoading: boolean;
-  onQueryChange: (value: string) => void;
   onNavigate?: () => void;
 }) {
   return (
@@ -132,19 +109,7 @@ function SidebarContent({
         </div>
       </div>
 
-      <div className="px-4 pt-5">
-        <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 transition focus-within:border-brand-teal-600 focus-within:bg-white/10">
-          <Search className="size-4 shrink-0 text-[#94d9d2]" />
-          <input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="بحث في اللوحة..."
-            className="w-full border-0 bg-transparent text-[13px] text-white outline-none placeholder:text-[#94d9d2]"
-          />
-        </label>
-      </div>
-
-      <ScrollArea className="flex-1 px-2 py-3 scrollbar-thin">
+      <ScrollArea className="flex-1 px-2 py-5 scrollbar-thin">
         <nav className="space-y-4 pb-2 pe-1">
           {groupOrder.map((group) => {
             const groupItems = items.filter((item) => item.group === group);
@@ -218,9 +183,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { data: admin, error, isLoading } = useCurrentAdmin();
   const { data: countsData, isLoading: countsLoading } = useSidebarCounts();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [navQuery, setNavQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const { toggleTheme } = useTheme();
   const displayName = admin?.fullName ?? admin?.name ?? admin?.email ?? "مسؤول";
   const hasExplicitPermissions = Boolean(admin?.permissions?.length);
   const permissionCount = hasExplicitPermissions
@@ -233,20 +195,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     }
   }, [error, pathname, router]);
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setSearchOpen((open) => !open);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   const visibleNavItems = useMemo(() => {
     const shouldFilterByPermission = Boolean(admin?.permissions?.length);
-    const allowed = admin
+    return admin
       ? navItems.filter(
           (item) =>
             !shouldFilterByPermission ||
@@ -254,48 +205,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             hasPermission(admin, item.permission),
         )
       : navItems;
-
-    if (!navQuery.trim()) return allowed;
-    const needle = navQuery.trim().toLowerCase();
-    return allowed.filter((item) =>
-      `${item.label} ${item.description} ${item.href}`.toLowerCase().includes(needle),
-    );
-  }, [admin, navQuery]);
-
-  const searchResults = useMemo(() => {
-    const baseResults = navItemsToSearchResults(visibleNavItems);
-    const quickActions: GlobalSearchResult[] = [
-      {
-        id: "quick-toggle-theme",
-        label: "تغيير المظهر (فاتح / داكن)",
-        hint: "التبديل بين الوضع الليلي والنهاري",
-        group: "الإجراءات السريعة",
-        onSelect: () => toggleTheme(),
-      },
-      {
-        id: "quick-create-user",
-        label: "إضافة مستخدم جديد",
-        hint: "إنشاء حساب مسؤول جديد بالنظام",
-        group: "الإجراءات السريعة",
-        href: "/users/create",
-      },
-      {
-        id: "quick-manage-vendors",
-        label: "إدارة وتعديل البائعين",
-        hint: "مراجعة وتعديل بيانات وحالة البائعين والمتاجر",
-        group: "الإجراءات السريعة",
-        href: "/vendors",
-      },
-      {
-        id: "quick-export-audit",
-        label: "سجل العمليات والنشاط",
-        hint: "عرض وتصدير سجل الأحداث والعمليات بالمنصة",
-        group: "الإجراءات السريعة",
-        href: "/audit-logs",
-      },
-    ];
-    return [...baseResults, ...quickActions];
-  }, [visibleNavItems, toggleTheme]);
+  }, [admin]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -311,11 +221,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       >
         <SidebarContent
           pathname={pathname}
-          items={visibleNavItems}
-          query={navQuery}
+          items={visibleNavItems.filter((item) => item.href !== "/settings")}
           counts={countsData ?? {}}
           countsLoading={countsLoading}
-          onQueryChange={setNavQuery}
         />
         <div className="absolute inset-x-0 bottom-0 border-t border-white/10 bg-gradient-to-t from-sidebar-bg-to/95 to-transparent p-4 backdrop-blur-sm">
           <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3.5">
@@ -359,11 +267,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </div>
             <SidebarContent
               pathname={pathname}
-              items={visibleNavItems}
-              query={navQuery}
+              items={visibleNavItems.filter((item) => item.href !== "/settings")}
               counts={countsData ?? {}}
               countsLoading={countsLoading}
-              onQueryChange={setNavQuery}
               onNavigate={() => setIsMobileNavOpen(false)}
             />
           </aside>
@@ -393,30 +299,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   : `نظرة شاملة على أداء منصة يلا نيو — ${arabicToday()}`}
               </p>
             </div>
-            <GlobalSearchTrigger onClick={() => setSearchOpen(true)} className="max-w-[320px] flex-1" />
-            <ThemeToggle />
-            <button
-              type="button"
-              className="flex h-10 items-center gap-1.5 rounded-2xl bg-muted px-2.5 text-xs font-semibold text-ink-muted transition hover:bg-border"
-            >
-              <Globe className="size-3.5" />
-              EN
-            </button>
-            <button
-              type="button"
-              className="relative grid size-10 place-items-center rounded-2xl bg-muted text-ink-muted transition hover:bg-primary hover:text-white"
-              aria-label="الإشعارات"
-            >
-              <Bell className="size-[18px]" />
-              <span className="absolute top-2 left-2 size-2 rounded-full bg-destructive ring-2 ring-muted" />
-            </button>
-            <button
-              type="button"
-              className="grid size-10 place-items-center rounded-2xl bg-muted text-ink-muted transition hover:bg-primary hover:text-white"
-              aria-label="الرسائل"
-            >
-              <MessageSquare className="size-[18px]" />
-            </button>
             <div className="flex items-center gap-2.5 rounded-2xl py-1 ps-1 pe-2.5 transition hover:bg-muted">
               <div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-primary to-brand-orange text-[13px] font-extrabold text-white">
                 {initials(displayName)}
@@ -446,12 +328,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           {arabicNow()}
         </footer>
       </div>
-
-      <GlobalSearch
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
-        results={searchResults}
-      />
 
       <div className="sr-only" aria-live="polite">
         {permissionCount} صلاحية متاحة

@@ -228,7 +228,6 @@ export default function UsersPage() {
   const searchParams = useSearchParams();
   const [pendingAction, setPendingAction] = useState<PendingUserAction | null>(null);
   const queryParams = {
-    q: searchParams.get("q") ?? undefined,
     status: searchParams.get("status") ?? undefined,
     cursor: searchParams.get("cursor") ?? undefined,
     limit: "20",
@@ -273,15 +272,15 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="المستخدمون"
-        description="البحث عن المستخدمين، مراجعة الأدوار، وإيقاف أو إعادة تنشيط الحسابات."
+        title="المسؤولون"
+        description="إدارة حسابات مسؤولي النظام وأدوارهم وصلاحياتهم وإيقاف أو إعادة تنشيط الحسابات."
         actions={
           <Link
             href="/users/create"
             className="inline-flex h-10 items-center rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:bg-primary/90"
           >
             <Plus className="size-4" />
-            إنشاء مستخدم
+            إنشاء مسؤول
           </Link>
         }
       />
@@ -289,7 +288,6 @@ export default function UsersPage() {
       <CreateRoleForm />
 
       <TableToolbar
-        searchPlaceholder="ابحث بالاسم أو البريد أو الهاتف"
         statusOptions={userStatuses}
       />
 
@@ -302,7 +300,7 @@ export default function UsersPage() {
       ) : (
         <>
           <CursorDataTable
-            data={users.data?.data ?? []}
+            data={(users.data?.data ?? []).filter((user) => user.roles && user.roles.length > 0)}
             getRowKey={(user) => user.publicId}
             columns={[
               {

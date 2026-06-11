@@ -101,7 +101,7 @@ export default function ReviewsPage() {
         description="مراجعة تقييمات المنتجات والبائعين قبل أن تؤثر على جودة السوق."
       />
 
-      <TableToolbar statusOptions={reviewStatuses} showSearch={false} />
+      <TableToolbar statusOptions={reviewStatuses} />
 
       {reviews.isLoading ? (
         <TableSkeleton />

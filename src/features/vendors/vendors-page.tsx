@@ -84,7 +84,6 @@ export default function VendorsPage() {
       />
 
       <TableToolbar
-        searchPlaceholder="ابحث بالاسم القانوني أو البريد أو slug"
         statusOptions={vendorStatuses}
       />
 

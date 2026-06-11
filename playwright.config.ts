@@ -9,7 +9,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run dev -- --port 3001",
+    command: "npm run dev:e2e",
     url: "http://127.0.0.1:3001",
     reuseExistingServer: !process.env.CI,
   },

@@ -145,7 +145,6 @@ export function PayoutsPage() {
       </section>
 
       <TableToolbar
-        searchPlaceholder="ابحث داخل الصفحة الحالية من المتصفح"
         statusOptions={payoutStatuses}
       />
 

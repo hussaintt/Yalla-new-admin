@@ -125,9 +125,7 @@ export default function VerificationsPage() {
       />
 
       <TableToolbar
-        searchPlaceholder="ابحث في وثائق التحقق..."
         statusOptions={verificationStatuses}
-        showSearch={false}
       />
 
       {verifications.isLoading ? (
