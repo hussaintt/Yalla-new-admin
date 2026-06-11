@@ -19,7 +19,6 @@ import { useCurrentAdmin } from "@/features/auth/use-current-admin";
 import { ErrorState, LoadingState } from "@/components/state/async-states";
 import { KpiCard, type KpiTone } from "@/components/ui/kpi-card";
 import { SectionCard } from "@/components/ui/section-card";
-import { WelcomeBanner } from "@/components/ui/welcome-banner";
 import { Button } from "@/components/ui/button";
 
 import { BillingCycleCard } from "@/components/dashboard/billing-cycle-card";
@@ -217,12 +216,7 @@ export default function DashboardPage() {
         date={todayArabic()}
       />
 
-      <WelcomeBanner
-        title={`أهلاً ${adminName}، منصتك بتنمو بقوة`}
-        description={buildWelcomeDescription(welcome.data)}
-        primaryAction={{ label: "إدارة المتاجر", href: "/stores" }}
-        secondaryAction={{ label: "تصدير تقرير", href: "/reports" }}
-      />
+      
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((card) => (
@@ -246,7 +240,7 @@ export default function DashboardPage() {
           <BillingCycleCard />
         </SectionCard>
         <SectionCard
-          title="قمع التحويل"
+          title="احصائيات التطبيق"
           description="من زيارة الصفحة إلى طلب مكتمل"
         >
           <FunnelCard />
@@ -342,9 +336,4 @@ function formatNumber(value: number | null | undefined) {
   return new Intl.NumberFormat("ar-EG").format(value);
 }
 
-function buildWelcomeDescription(summary?: WelcomeSummary) {
-  if (!summary) {
-    return "جار تحميل ملخص أداء المنصة.";
-  }
-  return `خلال آخر ${summary.windowDays} يوم، انضم ${summary.newVendorsInWindow} بائع جديد، وانجزت ${formatNumber(summary.ordersInWindow)} طلب، وحققت المنصة عمولات بقيمة ${formatMoney(summary.commissionInWindowCents, summary.currency)}. عندك ${summary.pendingKyc} طلب KYC في انتظار المراجعة و ${summary.activeAlerts} تحذيرات تحتاج انتباهك.`;
-}
+

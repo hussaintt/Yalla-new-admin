@@ -21,9 +21,9 @@ export function FunnelCard() {
   const data = query.data;
 
   const baseValue = data?.pageViews ?? 0;
+  const barBaseValue = data?.registrations ?? 1;
   const stages: Stage[] = data
     ? [
-        { key: "pageViews", label: "زيارات الصفحة", value: data.pageViews },
         { key: "registrations", label: "تسجيلات", value: data.registrations },
         { key: "cartAdditions", label: "إضافة للسلة", value: data.cartAdditions },
         {
@@ -55,7 +55,7 @@ export function FunnelCard() {
 
           <ol className="space-y-2.5">
             {stages.map((stage, index) => {
-              const pct = ratio(stage.value, baseValue);
+              const pct = ratio(stage.value, barBaseValue);
               const next = stages[index + 1];
               const drop =
                 next && stage.value > 0
