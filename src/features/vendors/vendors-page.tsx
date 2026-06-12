@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import Link from "next/link";
+
 import { CursorDataTable } from "@/components/data-table/cursor-data-table";
 import { CursorPager } from "@/components/data-table/cursor-pager";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
@@ -103,9 +105,12 @@ export default function VendorsPage() {
                 cell: (user) => (
                   <div>
                     <div className="flex items-center gap-1">
-                      <span className="font-medium text-ink-strong">
+                      <Link
+                        href={`/vendors/${user.publicId}`}
+                        className="font-medium text-primary hover:underline"
+                      >
                         {formatName(user)}
-                      </span>
+                      </Link>
                       <CopyButton value={user.publicId} />
                     </div>
                     <div className="text-xs text-ink-muted">{user.email}</div>

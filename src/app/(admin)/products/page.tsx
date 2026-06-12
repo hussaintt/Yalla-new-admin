@@ -7,7 +7,7 @@ import { requirePagePermission } from "@/lib/auth/server-session";
 export const dynamic = "force-dynamic";
 
 export default async function ProductsRoute() {
-  await requirePagePermission("catalog:write");
+  await requirePagePermission("products:review");
   return (
     <Suspense fallback={<LoadingState label="جار تحميل المنتجات" />}>
       <ProductsPage />

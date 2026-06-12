@@ -389,6 +389,17 @@ export type MediaPurgeResponse = {
   success: boolean;
 };
 
+export type Setting = {
+  id: number;
+  publicId: string;
+  group: string;
+  key: string;
+  value: string;
+  type: string;
+  isPublic: boolean;
+  updatedAt: string;
+};
+
 export type MaintenanceSettings = {
   enabled: boolean;
   bannerMessage: string;

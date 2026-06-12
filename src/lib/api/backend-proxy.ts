@@ -161,7 +161,9 @@ async function buildProxyResponse(
 ) {
   let response: NextResponse;
 
-  if (isStreamableResponse(backendResponse)) {
+  if (backendResponse.status === 204) {
+    response = new NextResponse(null, { status: 204 });
+  } else if (isStreamableResponse(backendResponse)) {
     response = streamBackendResponse(backendResponse);
   } else {
     const payload = await parseBackendResponse(backendResponse);

@@ -68,7 +68,14 @@ export function localizedText(
   return fallback;
 }
 
-export function roleLabel(role: unknown) {
+const ROLE_DISPLAY_NAMES: Record<string, string> = {
+  ADMIN: "مدير",
+  SUPER_ADMIN: "مدير عام",
+  OWNER: "مالك",
+  MODERATOR: "مشرف",
+};
+
+function resolveRoleName(role: unknown): string {
   if (typeof role === "string") return role;
   if (!role || typeof role !== "object") return "";
   const record = role as Record<string, unknown>;
@@ -78,4 +85,9 @@ export function roleLabel(role: unknown) {
     return String(nested.name ?? nested.code ?? nested.slug ?? "");
   }
   return String(record.name ?? record.code ?? record.slug ?? "");
+}
+
+export function roleLabel(role: unknown) {
+  const name = resolveRoleName(role);
+  return ROLE_DISPLAY_NAMES[name] ?? name;
 }

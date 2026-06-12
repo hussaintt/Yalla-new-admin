@@ -9,6 +9,6 @@ export default async function StorePage({
   params: Promise<{ storeId: string }>;
 }) {
   const { storeId } = await params;
-  await requirePagePermission("vendors:read");
+  await requirePagePermission("stores:read");
   return <StoreDetailPage vendorId={storeId} />;
 }

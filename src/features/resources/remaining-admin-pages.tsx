@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { bannerSchema, type BannerFormValues } from "@/features/banners/schema";
 
 import { CursorDataTable } from "@/components/data-table/cursor-data-table";
 import { EntityEditorDrawer, type EditorField } from "@/components/forms/entity-editor-drawer";
@@ -239,8 +242,8 @@ export function UserDetailPage({ userId }: { userId: string }) {
   });
 
   const revokeRole = useMutation({
-    mutationFn: ({ targetUserId, nextRoleId }: { targetUserId: number; nextRoleId: number }) =>
-      adminApi(`/api/admin/roles/users/${targetUserId}/roles/${nextRoleId}`, {
+    mutationFn: ({ targetUserId, nextRoleId }: { targetUserId: string; nextRoleId: number }) =>
+      adminApi<void>(`/api/admin/roles/users/${targetUserId}/roles/${nextRoleId}`, {
         method: "DELETE",
       }),
     onSuccess: async () => {
@@ -358,7 +361,7 @@ export function UserDetailPage({ userId }: { userId: string }) {
                     <button
                       type="button"
                       disabled={revokeRole.isPending}
-                      onClick={() => revokeRole.mutate({ targetUserId: Number(user.id), nextRoleId: id })}
+                      onClick={() => revokeRole.mutate({ targetUserId: String(user.publicId), nextRoleId: id })}
                       className="font-bold text-ink-soft transition hover:text-destructive"
                       title="حذف الدور"
                     >
@@ -1013,45 +1016,79 @@ export function BannerDetailPage({ bannerId }: { bannerId: string }) {
 
 function BannerEditorPage({ mode, bannerId }: { mode: "create" | "edit"; bannerId?: string }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { confirm, element: confirmElement } = useConfirmDialog();
-  const [imageFileId, setImageFileId] = useState("");
-  const [title, setTitle] = useState("");
-  const [position, setPosition] = useState("HOME_HERO");
-  const [linkTarget, setLinkTarget] = useState("");
-  const [isActive, setIsActive] = useState("true");
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors },
+  } = useForm<BannerFormValues>({
+    resolver: zodResolver(bannerSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      position: "HOME_HERO",
+      linkTarget: "",
+      imageFileId: "",
+      isActive: "true",
+    },
+  });
+
   const detail = useQuery({
     queryKey: ["/api/admin/admin/banners", bannerId],
     queryFn: () => adminApi<AnyRecord>(`/api/admin/admin/banners/${bannerId}`),
     enabled: mode === "edit" && Boolean(bannerId),
   });
+
   useEffect(() => {
     if (!detail.data) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setImageFileId(text(detail.data.imageFileId, ""));
-    setTitle(localizedText(detail.data.title, "", "ar"));
-    setPosition(text(detail.data.position, "HOME_HERO"));
-    setLinkTarget(text(detail.data.linkTarget, ""));
-    setIsActive(detail.data.isActive === false ? "false" : "true");
-  }, [detail.data]);
+    reset({
+      title: localizedText(detail.data.title, "", "ar"),
+      description: localizedText(detail.data.description, "", "ar"),
+      position: text(detail.data.position, "HOME_HERO") as "HOME_HERO" | "HOME_STRIP" | "CATEGORY_HEADER" | "CATEGORIES_FEATURED",
+      linkTarget: text(detail.data.linkTarget, ""),
+      imageFileId: text(detail.data.imageFileId, ""),
+      isActive: detail.data.isActive === false ? "false" : "true",
+    });
+  }, [detail.data, reset]);
+
   const save = useMutation({
-    mutationFn: () => adminApi(`/api/admin/admin/banners${mode === "edit" ? `/${bannerId}` : ""}`, {
-      method: mode === "edit" ? "PATCH" : "POST",
-      body: { imageFileId, title: { ar: title, en: title }, position, linkTarget: linkTarget || undefined, isActive: isActive === "true" },
-    }),
+    mutationFn: (values: BannerFormValues) =>
+      adminApi(`/api/admin/admin/banners${mode === "edit" ? `/${bannerId}` : ""}`, {
+        method: mode === "edit" ? "PATCH" : "POST",
+        body: {
+          imageFileId: values.imageFileId,
+          title: { ar: values.title, en: values.title },
+          description: values.description ? { ar: values.description, en: values.description } : undefined,
+          position: values.position,
+          linkTarget: values.linkTarget || undefined,
+          isActive: values.isActive === "true",
+        },
+      }),
     onSuccess: async () => {
       toast.success("تم حفظ البانر");
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/admin/banners"] });
+      router.push("/banners");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "تعذر حفظ البانر"),
   });
+
   const remove = useMutation({
     mutationFn: () => adminApi(`/api/admin/admin/banners/${bannerId}`, { method: "DELETE" }),
     onSuccess: async () => {
       toast.success("تم حذف البانر");
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/admin/banners"] });
+      router.push("/banners");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "تعذر حذف البانر"),
   });
+
+  const onSubmit = (values: BannerFormValues) => {
+    save.mutate(values);
+  };
 
   return (
     <div className="space-y-6">
@@ -1064,14 +1101,22 @@ function BannerEditorPage({ mode, bannerId }: { mode: "create" | "edit"; bannerI
           </Link>
         }
       />
-      {detail.isLoading ? <LoadingState /> : detail.isError ? <ErrorState message={detail.error.message} /> : (
+      {detail.isLoading && mode === "edit" ? <LoadingState /> : detail.isError && mode === "edit" ? <ErrorState message={detail.error.message} /> : (
         <SectionCard title="بيانات البانر">
-          <form onSubmit={(event) => { event.preventDefault(); save.mutate(); }} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <TextInput label="العنوان" value={title} onChange={setTitle} required />
-              <FormField label="الموضع">
+              <FormField label="العنوان" required error={errors.title?.message}>
                 {(props) => (
-                  <FormSelect {...props} value={position} onChange={(e) => setPosition(e.target.value)}>
+                  <FormInput
+                    {...props}
+                    invalid={!!errors.title}
+                    {...register("title")}
+                  />
+                )}
+              </FormField>
+              <FormField label="الموضع" error={errors.position?.message}>
+                {(props) => (
+                  <FormSelect {...props} invalid={!!errors.position} {...register("position")}>
                     <option value="HOME_HERO">HOME_HERO</option>
                     <option value="HOME_STRIP">HOME_STRIP</option>
                     <option value="CATEGORY_HEADER">CATEGORY_HEADER</option>
@@ -1079,10 +1124,18 @@ function BannerEditorPage({ mode, bannerId }: { mode: "create" | "edit"; bannerI
                   </FormSelect>
                 )}
               </FormField>
-              <TextInput label="الرابط" value={linkTarget} onChange={setLinkTarget} />
-              <FormField label="نشط؟">
+              <FormField label="الرابط" error={errors.linkTarget?.message}>
                 {(props) => (
-                  <FormSelect {...props} value={isActive} onChange={(e) => setIsActive(e.target.value)}>
+                  <FormInput
+                    {...props}
+                    invalid={!!errors.linkTarget}
+                    {...register("linkTarget")}
+                  />
+                )}
+              </FormField>
+              <FormField label="نشط؟" error={errors.isActive?.message}>
+                {(props) => (
+                  <FormSelect {...props} invalid={!!errors.isActive} {...register("isActive")}>
                     <option value="true">نشط (Active)</option>
                     <option value="false">غير نشط (Inactive)</option>
                   </FormSelect>
@@ -1090,10 +1143,27 @@ function BannerEditorPage({ mode, bannerId }: { mode: "create" | "edit"; bannerI
               </FormField>
             </div>
 
-            <ImageUploadInput label="صورة البانر" value={imageFileId} onChange={setImageFileId} purpose="BANNER_IMAGE" required />
+            <div className="space-y-1.5">
+              <Controller
+                control={control}
+                name="imageFileId"
+                render={({ field }) => (
+                  <ImageUploadInput
+                    label="صورة البانر"
+                    value={field.value}
+                    onChange={field.onChange}
+                    purpose="BANNER_IMAGE"
+                    required
+                  />
+                )}
+              />
+              {errors.imageFileId && (
+                <p className="text-xs font-semibold text-destructive">{errors.imageFileId.message}</p>
+              )}
+            </div>
 
             <div className="flex gap-2">
-              <Button type="submit" variant="primary" disabled={save.isPending || !imageFileId}>حفظ</Button>
+              <Button type="submit" variant="primary" disabled={save.isPending}>حفظ</Button>
               {mode === "edit" ? (
                 <Button
                   type="button"

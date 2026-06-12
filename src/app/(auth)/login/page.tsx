@@ -26,7 +26,7 @@ async function parseResponse(response: Response) {
 
 function safeNextPath(next: string | null) {
   if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return "/dashboard";
+    return "/";
   }
 
   return next;

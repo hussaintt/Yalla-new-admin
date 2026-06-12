@@ -5,6 +5,7 @@ export type AdminPermission =
   | "roles:write"
   | "vendors:read"
   | "vendors:write"
+  | "stores:read"
   | "kyc:review"
   | "orders:read"
   | "orders:write"
@@ -12,6 +13,7 @@ export type AdminPermission =
   | "payments:read"
   | "refunds:write"
   | "catalog:write"
+  | "products:review"
   | "marketing:write"
   | "billing:write"
   | "settings:write"
@@ -39,6 +41,7 @@ export const superAdminPermissions: AdminPermission[] = [
   "roles:write",
   "vendors:read",
   "vendors:write",
+  "stores:read",
   "kyc:review",
   "orders:read",
   "orders:write",
@@ -46,6 +49,7 @@ export const superAdminPermissions: AdminPermission[] = [
   "payments:read",
   "refunds:write",
   "catalog:write",
+  "products:review",
   "marketing:write",
   "billing:write",
   "settings:write",
@@ -53,25 +57,23 @@ export const superAdminPermissions: AdminPermission[] = [
   "ops:read",
 ];
 
-const readOnlyAdminPermissions: AdminPermission[] = [
-  "dashboard:read",
-  "users:read",
-  "vendors:read",
-  "orders:read",
-  "payments:read",
-  "audit:read",
-  "ops:read",
+export const moderatorPermissions: AdminPermission[] = [
+  "marketing:write",
+  "kyc:review",
+  "products:review",
+  "stores:read",
 ];
 
 const adminRoleCodes = new Set([
   "ADMIN",
   "SUPER_ADMIN",
-  "ADMINISTRATOR",
   "OWNER",
-  "STAFF_ADMIN",
+  "MODERATOR",
 ]);
 
 const superAdminRoleCodes = new Set(["SUPER_ADMIN", "OWNER"]);
+
+const moderatorRoleCodes = new Set(["MODERATOR"]);
 
 export function getRoleNames(user: AdminUser | null | undefined) {
   return (user?.roles ?? [])
@@ -86,6 +88,12 @@ export function getRoleNames(user: AdminUser | null | undefined) {
 export function isSuperAdminUser(user: AdminUser | null | undefined) {
   if (user?.email === "admin@yalla.app") return true;
   return getRoleNames(user).some((role) => superAdminRoleCodes.has(role));
+}
+
+export function isModeratorUser(user: AdminUser | null | undefined) {
+  if (!user) return false;
+  if (isSuperAdminUser(user)) return false;
+  return getRoleNames(user).some((role) => moderatorRoleCodes.has(role));
 }
 
 export function isAdminUser(user: AdminUser | null | undefined): user is AdminUser {
@@ -103,8 +111,9 @@ export function permissionsForUser(user: AdminUser | null | undefined) {
 
   if (explicit.length > 0) return explicit;
   if (isSuperAdminUser(user)) return superAdminPermissions;
+  if (isModeratorUser(user)) return moderatorPermissions;
 
-  return readOnlyAdminPermissions;
+  return superAdminPermissions;
 }
 
 export function hasPermission(

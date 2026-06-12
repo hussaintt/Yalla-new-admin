@@ -35,7 +35,7 @@ async function parseJson(response: Response) {
 function buildHeaders(options: RequestOptions, hasRawBody: boolean, requestId: string) {
   const headers = new Headers(options.headers);
 
-  if (!hasRawBody && !headers.has("Content-Type")) {
+  if (options.body !== undefined && !hasRawBody && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -118,6 +118,10 @@ export async function adminApi<T>(
       // terminal 401: clear cookies so the next visit forces a fresh login
       await clearAdminSession();
     }
+  }
+
+  if (response.status === 204) {
+    return null as T;
   }
 
   const payload = await parseJson(response);

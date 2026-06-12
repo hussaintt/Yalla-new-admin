@@ -7,7 +7,7 @@ import { requirePagePermission } from "@/lib/auth/server-session";
 export const dynamic = "force-dynamic";
 
 export default async function StoresRoute() {
-  await requirePagePermission("vendors:read");
+  await requirePagePermission("stores:read");
   return (
     <Suspense fallback={<LoadingState label="جار تحميل المتاجر" />}>
       <StoresPage />

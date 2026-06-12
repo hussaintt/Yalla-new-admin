@@ -13,11 +13,13 @@ import {
   ReceiptText,
   ShieldCheck,
   ShoppingBag,
+  Sparkles,
   Store,
   Truck,
   Users,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -29,6 +31,7 @@ import { useSidebarCounts } from "@/features/dashboard/sidebar-counts";
 import { ApiError } from "@/lib/api/errors";
 import {
   hasPermission,
+  isModeratorUser,
   permissionsForUser,
   type AdminPermission,
 } from "@/lib/auth/permissions";
@@ -49,12 +52,12 @@ const navItems: NavItem[] = [
   { href: "/admins", label: "المسؤولون", description: "الأدوار والصلاحيات", icon: Users, permission: "users:read", group: "core" },
   { href: "/customers", label: "العملاء", description: "حسابات عملاء المنصة", icon: Users, permission: "users:read", group: "core" },
   { href: "/vendors", label: "البائعون", description: "حسابات البائعين", icon: Warehouse, permission: "vendors:read", group: "core" },
-  { href: "/stores", label: "المتاجر", description: "الإدارة والاعتماد والتحقق", icon: Store, permission: "vendors:read", group: "core", countKey: "vendors" },
+  { href: "/stores", label: "المتاجر", description: "الإدارة والاعتماد والتحقق", icon: Store, permission: "stores:read", group: "core", countKey: "vendors" },
   { href: "/verifications", label: "طلبات KYC", description: "مراجعة الوثائق", icon: ShieldCheck, permission: "kyc:review", group: "core", countKey: "verifications" },
-  { href: "/products", label: "المنتجات", description: "الحالة والمحتوى", icon: PackageSearch, permission: "catalog:write", group: "market", countKey: "products" },
+  { href: "/products", label: "المنتجات", description: "الحالة والمحتوى", icon: PackageSearch, permission: "products:review", group: "market", countKey: "products" },
   { href: "/orders", label: "الطلبات", description: "البيع والتسليم", icon: ShoppingBag, permission: "orders:read", group: "market", countKey: "orders" },
   { href: "/catalog", label: "الكتالوج", description: "الفئات والعلامات التجارية", icon: Boxes, permission: "catalog:write", group: "market" },
-  { href: "/billing", label: "العمولات ودورات الفوترة", description: "الفوترة والتسويات", icon: ReceiptText, permission: "billing:write", group: "finance", countKey: "billing" },
+  { href: "/banners", label: "البانرات الإعلانية", description: "إدارة بنرات العروض والصفحة الرئيسية", icon: Sparkles, permission: "marketing:write", group: "market" },
   { href: "/refunds", label: "الاستردادات", description: "المراجعة والاعتماد", icon: ReceiptText, permission: "refunds:write", group: "finance" },
   { href: "/shipping", label: "الشحن والتسويات", description: "المناطق والأسعار", icon: Truck, permission: "settings:write", group: "finance" },
   { href: "/payments", label: "سجل المدفوعات", description: "الحركات المالية", icon: BadgeDollarSign, permission: "payments:read", group: "finance" },
@@ -98,14 +101,21 @@ function SidebarContent({
     <div className="flex h-full flex-col text-[#c9eae6]">
       <div className="border-b border-white/10 px-5 pb-5 pt-6">
         <div className="flex items-center gap-3 px-3">
-          <div className="grid size-12 place-items-center rounded-[14px] bg-gradient-to-br from-brand-teal-600 to-brand-orange text-white shadow-lg shadow-brand-teal-600/35">
-            <ShoppingBag className="size-[26px]" strokeWidth={2.5} />
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-[14px] bg-white p-1.5 shadow-lg shadow-brand-teal-600/10">
+            <Image
+              src="/logo.webp"
+              alt="Yalla New Logo"
+              width={48}
+              height={48}
+              priority
+              className="h-full w-auto object-contain"
+            />
           </div>
           <div>
             <div className="text-[18px] font-extrabold leading-tight tracking-tight text-white">
               يلا نيو
             </div>
-            <div className="mt-0.5 text-[11px] text-[#94d9d2]">لوحة تحكم المالك</div>
+            <div className="mt-0.5 text-[11px] text-[#94d9d2]">لوحة تحكم الإدارة</div>
           </div>
         </div>
       </div>
@@ -133,7 +143,7 @@ function SidebarContent({
                           "group relative flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[13.5px] font-medium text-[#c9eae6] transition",
                           "hover:bg-white/5 hover:text-white",
                           active &&
-                            "bg-gradient-to-l from-brand-teal-600 to-brand-teal-500 text-white shadow-lg shadow-brand-teal-600/30 hover:bg-gradient-to-l",
+                          "bg-gradient-to-l from-brand-teal-600 to-brand-teal-500 text-white shadow-lg shadow-brand-teal-600/30 hover:bg-gradient-to-l",
                         )}
                       >
                         <Icon className="size-[18px] shrink-0" />
@@ -185,10 +195,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { data: countsData, isLoading: countsLoading } = useSidebarCounts();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const displayName = admin?.fullName ?? admin?.name ?? admin?.email ?? "مسؤول";
-  const hasExplicitPermissions = Boolean(admin?.permissions?.length);
-  const permissionCount = hasExplicitPermissions
-    ? permissionsForUser(admin).length
-    : navItems.length;
+  const isModerator = isModeratorUser(admin);
+  const roleLabel = isModerator ? "مشرف • صلاحيات محدودة" : "مالك المنصة • صلاحيات كاملة";
+  const permissionCount = permissionsForUser(admin).length;
 
   useEffect(() => {
     if (error instanceof ApiError && error.statusCode === 401) {
@@ -197,15 +206,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }, [error, pathname, router]);
 
   const visibleNavItems = useMemo(() => {
-    const shouldFilterByPermission = Boolean(admin?.permissions?.length);
-    return admin
-      ? navItems.filter(
-          (item) =>
-            !shouldFilterByPermission ||
-            !item.permission ||
-            hasPermission(admin, item.permission),
-        )
-      : navItems;
+    if (!admin) return navItems;
+    return navItems.filter(
+      (item) => !item.permission || hasPermission(admin, item.permission),
+    );
   }, [admin]);
 
   async function handleLogout() {
@@ -236,7 +240,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 {displayName}
               </div>
               <div className="mt-0.5 truncate text-[11px] text-[#94d9d2]">
-                مالك المنصة • صلاحيات كاملة
+                {roleLabel}
               </div>
             </div>
             <span className="size-2 shrink-0 rounded-full bg-success shadow-[0_0_0_3px_rgba(16,185,129,0.2)]" />
@@ -306,7 +310,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </div>
               <div className="hidden text-right md:block">
                 <div className="text-[13px] font-bold text-ink">{displayName}</div>
-                <div className="text-[11px] text-ink-muted">المالك</div>
+                <div className="text-[11px] text-ink-muted">{isModerator ? "مشرف" : "المالك"}</div>
               </div>
               <button
                 type="button"
@@ -324,7 +328,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <footer className="px-4 pb-8 pt-2 text-center text-xs text-ink-soft lg:px-8">
-          لوحة تحكم مالك منصة يلا نيو • الإصدار 2.4.1 • آخر تحديث: {arabicToday()}
+          لوحة تحكم إدارة منصة يلا نيو • الإصدار 2.4.1 • آخر تحديث: {arabicToday()}
           {" — "}
           {arabicNow()}
         </footer>

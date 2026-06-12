@@ -22,7 +22,7 @@ import { SectionCard } from "@/components/ui/section-card";
 import { Button } from "@/components/ui/button";
 
 import { BillingCycleCard } from "@/components/dashboard/billing-cycle-card";
-import { FunnelCard } from "@/components/dashboard/funnel-card";
+import { CommissionRatesCard } from "@/components/dashboard/commission-rates-card";
 import { KycApprovalQueue, useKycQueue } from "@/components/dashboard/kyc-approval-queue";
 
 import { ActivityFeed, useActivityFeed } from "@/components/dashboard/activity-feed";
@@ -239,12 +239,7 @@ export default function DashboardPage() {
         >
           <BillingCycleCard />
         </SectionCard>
-        <SectionCard
-          title="احصائيات التطبيق"
-          description="من زيارة الصفحة إلى طلب مكتمل"
-        >
-          <FunnelCard />
-        </SectionCard>
+        <CommissionRatesCard />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">

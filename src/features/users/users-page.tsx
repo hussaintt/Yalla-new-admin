@@ -1,12 +1,10 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { CursorDataTable } from "@/components/data-table/cursor-data-table";
@@ -14,20 +12,17 @@ import { CursorPager } from "@/components/data-table/cursor-pager";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { PageHeader } from "@/components/layout/page-header";
 import { ActionDialog } from "@/components/modals/action-dialog";
-import { TableSkeleton } from "@/components/state/table-skeleton";
 import { ErrorState } from "@/components/state/async-states";
+import { TableSkeleton } from "@/components/state/table-skeleton";
 import { StatusBadge } from "@/components/status/status-badge";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
-import { FormField, FormInput } from "@/components/ui/form-field";
-import { SectionCard } from "@/components/ui/section-card";
 import { adminApi } from "@/lib/api/admin-client";
 import { withQuery } from "@/lib/api/paths";
 import { queryKeys } from "@/lib/api/query-keys";
 import type { AdminUserRow, Role, UserPage } from "@/lib/api/types";
 import { formatDate, formatName, roleLabel } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { createRoleSchema, type CreateRoleFormValues } from "./schema";
 
 const userStatuses = [
   { label: "قيد الانتظار", value: "PENDING" },
@@ -144,79 +139,6 @@ function RoleAssignment({
   );
 }
 
-function CreateRoleForm() {
-  const queryClient = useQueryClient();
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<CreateRoleFormValues>({
-    resolver: zodResolver(createRoleSchema),
-    defaultValues: { name: "", description: "" },
-  });
-
-  const createRole = useMutation({
-    mutationFn: (values: CreateRoleFormValues) =>
-      adminApi<Role>("/api/admin/roles", {
-        method: "POST",
-        body: { name: values.name, description: values.description || undefined },
-      }),
-    onSuccess: async () => {
-      toast.success("تم إنشاء الدور");
-      reset();
-      await queryClient.invalidateQueries({ queryKey: queryKeys.roles });
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "تعذر إنشاء الدور");
-    },
-  });
-
-  return (
-    <SectionCard
-      title="إنشاء دور جديد"
-      description="أضف دورًا للنظام ثم عيّنه للمستخدمين من الجدول."
-    >
-      <form
-        onSubmit={handleSubmit((values) => createRole.mutate(values))}
-        className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end"
-      >
-        <FormField label="اسم الدور" required error={errors.name?.message}>
-          {(props) => (
-            <FormInput
-              {...props}
-              minLength={2}
-              required
-              dir="ltr"
-              placeholder="SUPPORT_AGENT"
-              invalid={!!errors.name}
-              {...register("name")}
-            />
-          )}
-        </FormField>
-        <FormField label="الوصف" error={errors.description?.message}>
-          {(props) => (
-            <FormInput
-              {...props}
-              placeholder="وصف اختياري للدور"
-              invalid={!!errors.description}
-              {...register("description")}
-            />
-          )}
-        </FormField>
-        <Button
-          type="submit"
-          size="lg"
-          disabled={createRole.isPending}
-          className="h-10"
-        >
-          <Plus className="h-4 w-4" />
-          إنشاء دور
-        </Button>
-      </form>
-    </SectionCard>
-  );
-}
 
 type PendingUserAction = {
   userId: string;
@@ -224,9 +146,15 @@ type PendingUserAction = {
   status: "ACTIVE" | "SUSPENDED";
 };
 
+type PendingDelete = {
+  userId: string;
+  userLabel: string;
+};
+
 export default function UsersPage() {
   const searchParams = useSearchParams();
   const [pendingAction, setPendingAction] = useState<PendingUserAction | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const queryParams = {
     type: "admin",
     status: searchParams.get("status") ?? undefined,
@@ -270,6 +198,19 @@ export default function UsersPage() {
     },
   });
 
+  const deleteUser = useMutation({
+    mutationFn: (userId: string) =>
+      adminApi(`/api/admin/admin/users/${userId}`, { method: "DELETE" }),
+    onSuccess: async () => {
+      toast.success("تم حذف الحساب بنجاح");
+      setPendingDelete(null);
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "تعذر حذف الحساب");
+    },
+  });
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -286,7 +227,7 @@ export default function UsersPage() {
         }
       />
 
-      <CreateRoleForm />
+
 
       <TableToolbar
         statusOptions={userStatuses}
@@ -350,26 +291,44 @@ export default function UsersPage() {
                   const nextStatus =
                     user.status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED";
                   return (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      disabled={updateStatus.isPending}
-                      onClick={() =>
-                        setPendingAction({
-                          userId: user.publicId,
-                          userLabel: user.email ?? user.publicId,
-                          status: nextStatus,
-                        })
-                      }
-                      className={cn(
-                        nextStatus === "SUSPENDED"
-                          ? "border-destructive/30 text-destructive hover:bg-destructive-soft"
-                          : "border-success/30 text-success hover:bg-success-soft",
-                      )}
-                    >
-                      {nextStatus === "SUSPENDED" ? "إيقاف" : "إعادة تنشيط"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={updateStatus.isPending}
+                        onClick={() =>
+                          setPendingAction({
+                            userId: user.publicId,
+                            userLabel: user.email ?? user.publicId,
+                            status: nextStatus,
+                          })
+                        }
+                        className={cn(
+                          nextStatus === "SUSPENDED"
+                            ? "border-destructive/30 text-destructive hover:bg-destructive-soft"
+                            : "border-success/30 text-success hover:bg-success-soft",
+                        )}
+                      >
+                        {nextStatus === "SUSPENDED" ? "إيقاف" : "إعادة تنشيط"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={deleteUser.isPending}
+                        onClick={() =>
+                          setPendingDelete({
+                            userId: user.publicId,
+                            userLabel: user.email ?? user.publicId,
+                          })
+                        }
+                        className="border-destructive/30 text-destructive hover:bg-destructive-soft"
+                        title="حذف الحساب"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
                   );
                 },
               },
@@ -401,6 +360,24 @@ export default function UsersPage() {
             { userId: pendingAction.userId, status: pendingAction.status },
             { onSettled: () => setPendingAction(null) },
           );
+        }}
+      />
+
+      <ActionDialog
+        open={Boolean(pendingDelete)}
+        title="حذف الحساب نهائياً"
+        description={
+          pendingDelete
+            ? `سيتم حذف حساب ${pendingDelete.userLabel} بشكل نهائي ولن يتمكن من تسجيل الدخول. هذا الإجراء لا يمكن التراجع عنه.`
+            : ""
+        }
+        confirmLabel="حذف"
+        variant="danger"
+        disabled={deleteUser.isPending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          deleteUser.mutate(pendingDelete.userId);
         }}
       />
     </div>

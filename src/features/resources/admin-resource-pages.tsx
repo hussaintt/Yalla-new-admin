@@ -1,16 +1,21 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronUp, Download, FolderTree, Layers, Plus, RefreshCw, Search, Store, Tag } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { bannerSchema, type BannerFormValues } from "@/features/banners/schema";
 
 import { ClickableImageWithFileFallback } from "@/components/clickable-image-fallback";
 import { CursorDataTable } from "@/components/data-table/cursor-data-table";
+import { EntityEditorDrawer, type EditorField } from "@/components/forms/entity-editor-drawer";
 import { ImageUploadInput } from "@/components/image-upload-input";
 import { PageHeader } from "@/components/layout/page-header";
 import { ActionDialog } from "@/components/modals/action-dialog";
-import { BackendPendingNotice } from "@/components/state/backend-pending-notice";
 import { TableSkeleton } from "@/components/state/table-skeleton";
 import { EmptyState, ErrorState, LoadingState } from "@/components/state/async-states";
 import { StatusBadge } from "@/components/status/status-badge";
@@ -21,6 +26,7 @@ import { FormField, FormInput, FormSelect } from "@/components/ui/form-field";
 import { Progress } from "@/components/ui/progress";
 import { SectionCard } from "@/components/ui/section-card";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { adminApi } from "@/lib/api/admin-client";
 import type { CursorPage } from "@/lib/api/pagination";
 import { adminPaths, withQuery } from "@/lib/api/paths";
@@ -843,7 +849,9 @@ export function ProductsPage() {
         { id: "vendor", header: "البائع", cell: (row) => {
           const vendor = row.vendor as AnyRecord | undefined;
           if (!vendor) return "-";
-          return localizedText(vendor.displayName, String(vendor.slug ?? "-"), "ar");
+          const name = localizedText(vendor.displayName, String(vendor.legalName ?? vendor.slug ?? "-"), "ar");
+          const vid = text(vendor.publicId);
+          return vid ? <Link className="font-medium text-primary hover:underline" href={`/vendors/${vid}`}>{name}</Link> : name;
         } },
         { id: "date", header: "التاريخ", cell: (row) => formatDate(row.createdAt) },
       ]}
@@ -906,7 +914,7 @@ export function ProductDetailPage({ productId }: { productId: string }) {
             { label: "الحالة", value: <StatusBadge status={text(row.status, "UNKNOWN")} /> },
             { label: "قناة البيع", value: text(row.salesChannel) },
             { label: "السعر", value: (() => { const v = Array.isArray(row.variants) ? (row.variants as AnyRecord[]).reduce((min: AnyRecord | null, x) => (!min || Number(x.priceCents) < Number(min.priceCents) ? x : min), null) : null; return formatMoney(v?.priceCents, "EGP"); })() },
-            { label: "البائع", value: (() => { const v = row.vendor as AnyRecord | undefined; if (!v) return "-"; return localizedText(v.displayName, String(v.legalName ?? v.slug ?? "-"), "ar"); })() },
+            { label: "البائع", value: (() => { const v = row.vendor as AnyRecord | undefined; if (!v) return "-"; const name = localizedText(v.displayName, String(v.legalName ?? v.slug ?? "-"), "ar"); const vid = text(v.publicId); return vid ? <Link className="font-medium text-primary hover:underline" href={`/vendors/${vid}`}>{name}</Link> : name; })() },
             { label: "التصنيف", value: localizedText((row.category as AnyRecord | undefined)?.name, text((row.category as AnyRecord | undefined)?.slug), "ar") },
             { label: "العلامة", value: localizedText((row.brand as AnyRecord | undefined)?.name, text((row.brand as AnyRecord | undefined)?.slug), "ar") },
             { label: "تاريخ الإنشاء", value: formatDate(row.createdAt) },
@@ -1032,33 +1040,163 @@ function SimpleCreateForm({
   );
 }
 
+const catalogItemSchema = z.object({
+  nameAr: z.string().min(1, "الاسم بالعربية مطلوب"),
+  nameEn: z.string().optional().default(""),
+  slug: z.string().min(1, "المعرّف النصي مطلوب"),
+});
+type CatalogItemValues = z.infer<typeof catalogItemSchema>;
+
+const catalogItemFields: EditorField<CatalogItemValues>[] = [
+  { name: "nameAr", label: "الاسم بالعربية", required: true, placeholder: "مثال: إلكترونيات", colSpan: 2 },
+  { name: "nameEn", label: "الاسم بالإنجليزية", placeholder: "e.g. Electronics", dir: "ltr", colSpan: 2 },
+  { name: "slug", label: "المعرّف النصي (Slug)", required: true, placeholder: "electronics", dir: "ltr", colSpan: 2 },
+];
+
+const defaultCatalogValues: CatalogItemValues = { nameAr: "", nameEn: "", slug: "" };
+
+function CatalogStatCard({ icon, label, count, loading }: { icon: React.ReactNode; label: string; count: number; loading: boolean }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        {icon}
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-ink-muted">{label}</p>
+        <p className="text-xl font-extrabold text-ink-strong">
+          {loading ? "..." : count.toLocaleString("ar-EG")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CatalogSearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder ?? "بحث..."}
+        className="h-10 w-full rounded-xl border border-border bg-card pe-4 ps-10 text-sm text-ink-strong placeholder:text-ink-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+    </div>
+  );
+}
+
+function CatalogTabContent<T extends AnyRecord>({
+  path,
+  query,
+  columns,
+  normalize,
+  searchValue,
+}: {
+  path: string;
+  query?: Record<string, string | undefined>;
+  columns: Array<{ id: string; header: React.ReactNode; cell: (row: T) => React.ReactNode }>;
+  normalize?: (payload: unknown) => T[] | CursorPage<T>;
+  searchValue: string;
+}) {
+  const [cursor, setCursor] = useState<string | undefined>();
+  const params = { limit: "20", cursor, ...(query ?? {}) };
+  const url = withQuery(path, params);
+  const list = useQuery({
+    queryKey: [path, params],
+    queryFn: () => adminApi<unknown>(url),
+  });
+
+  const result = useMemo(() => {
+    if (!list.data) return { data: [] as T[], hasMore: false, nextCursor: null };
+    const normalized = normalize?.(list.data);
+    if (Array.isArray(normalized)) return { data: normalized, hasMore: false, nextCursor: null };
+    if (normalized) return normalized;
+    if (Array.isArray(list.data)) return { data: list.data as T[], hasMore: false, nextCursor: null };
+    const page = list.data as CursorPage<T>;
+    return { data: page.data ?? [], hasMore: page.hasMore, nextCursor: page.nextCursor };
+  }, [list.data, normalize]);
+
+  const filtered = useMemo(() => {
+    if (!searchValue.trim()) return result.data;
+    const q = searchValue.trim().toLowerCase();
+    return result.data.filter((row) => {
+      const name = typeof row.name === "object" ? localizedText(row.name, "", "ar") : String(row.name ?? "");
+      const slug = String(row.slug ?? "");
+      return name.toLowerCase().includes(q) || slug.toLowerCase().includes(q);
+    });
+  }, [result.data, searchValue]);
+
+  if (list.isLoading) return <TableSkeleton />;
+  if (list.isError) return <ErrorState message={list.error.message} />;
+  if (filtered.length === 0) return <EmptyState title="لا توجد بيانات" description={searchValue ? "لا توجد نتائج مطابقة للبحث." : "لا توجد عناصر حاليا."} />;
+
+  return (
+    <div className="space-y-3">
+      <CursorDataTable data={filtered} getRowKey={(row) => idOf(row)} columns={columns} />
+      {!searchValue && (
+        <div className="flex justify-end gap-2">
+          <Button type="button" size="sm" variant="secondary" disabled={!cursor} onClick={() => setCursor(undefined)}>
+            الأولى
+          </Button>
+          <Button type="button" size="sm" variant="secondary" disabled={!result.hasMore || !result.nextCursor} onClick={() => setCursor(result.nextCursor ?? undefined)}>
+            التالي
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CatalogPage() {
   const queryClient = useQueryClient();
-  const [categoryName, setCategoryName] = useState("");
-  const [categorySlug, setCategorySlug] = useState("");
-  const [brandName, setBrandName] = useState("");
-  const [brandSlug, setBrandSlug] = useState("");
-  const [storeName, setStoreName] = useState("");
-  const [storeSlug, setStoreSlug] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTarget, setDrawerTarget] = useState<"category" | "brand" | "store">("category");
+  const [importExpanded, setImportExpanded] = useState(false);
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
+  const [catSearch, setCatSearch] = useState("");
+  const [brandSearch, setBrandSearch] = useState("");
+  const [storeSearch, setStoreSearch] = useState("");
+
+  const categoriesCount = useQuery({
+    queryKey: ["/api/admin/categories", "count"],
+    queryFn: async () => {
+      const data = await adminApi<unknown>(withQuery("/api/admin/categories", { flat: "true", limit: "1" }));
+      if (Array.isArray(data)) return data.length;
+      const page = data as CursorPage<AnyRecord>;
+      return page.data?.length ?? 0;
+    },
+  });
+  const brandsCount = useQuery({
+    queryKey: ["/api/admin/brands", "count"],
+    queryFn: async () => {
+      const data = await adminApi<unknown>(withQuery("/api/admin/brands", { limit: "1" }));
+      if (Array.isArray(data)) return data.length;
+      const page = data as CursorPage<AnyRecord>;
+      return page.data?.length ?? 0;
+    },
+  });
+  const storeCatsCount = useQuery({
+    queryKey: ["/api/admin/store-categories", "count"],
+    queryFn: async () => {
+      const data = await adminApi<unknown>(withQuery("/api/admin/store-categories", { limit: "1" }));
+      if (Array.isArray(data)) return data.length;
+      const page = data as CursorPage<AnyRecord>;
+      return page.data?.length ?? 0;
+    },
+  });
 
   const importAllCategories = useMutation({
     mutationFn: async () => {
       const response = await fetch("/noon_categories_and_brands.json");
       const data = await response.json() as { categories: Array<{ name_ar: string; name_en: string; slug: string }> };
-
       setImportProgress({ current: 0, total: data.categories.length });
-
       for (let i = 0; i < data.categories.length; i++) {
         const cat = data.categories[i];
         try {
           await adminApi("/api/admin/categories", {
             method: "POST",
-            body: {
-              name: { ar: cat.name_ar, en: cat.name_en },
-              slug: cat.slug,
-              isActive: true,
-            },
+            body: { name: { ar: cat.name_ar, en: cat.name_en }, slug: cat.slug, isActive: true },
           });
         } catch (error) {
           console.error(`Failed to create category ${cat.name_ar}:`, error);
@@ -1081,25 +1219,18 @@ export function CatalogPage() {
     mutationFn: async () => {
       const response = await fetch("/noon_categories_and_brands.json");
       const data = await response.json() as { categories: Array<{ brands: string[] }> };
-
       const allBrands = Array.from(new Set(data.categories.flatMap((cat) => cat.brands)));
-
       setImportProgress({ current: 0, total: allBrands.length });
-
       for (let i = 0; i < allBrands.length; i++) {
-        const brandName = allBrands[i];
-        const slug = brandName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const bName = allBrands[i];
+        const slug = bName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
         try {
           await adminApi("/api/admin/brands", {
             method: "POST",
-            body: {
-              name: { ar: brandName, en: brandName },
-              slug,
-              isActive: true,
-            },
+            body: { name: { ar: bName, en: bName }, slug, isActive: true },
           });
         } catch (error) {
-          console.error(`Failed to create brand ${brandName}:`, error);
+          console.error(`Failed to create brand ${bName}:`, error);
         }
         setImportProgress({ current: i + 1, total: allBrands.length });
       }
@@ -1116,95 +1247,260 @@ export function CatalogPage() {
   });
 
   const createCategory = useMutation({
-    mutationFn: () => adminApi("/api/admin/categories", { method: "POST", body: { name: { ar: categoryName, en: categoryName }, slug: categorySlug, isActive: true } }),
-    onSuccess: async () => { toast.success("تم إنشاء التصنيف"); setCategoryName(""); setCategorySlug(""); await queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] }); },
+    mutationFn: (values: CatalogItemValues) =>
+      adminApi("/api/admin/categories", {
+        method: "POST",
+        body: { name: { ar: values.nameAr, en: values.nameEn || values.nameAr }, slug: values.slug, isActive: true },
+      }),
+    onSuccess: async () => {
+      toast.success("تم إنشاء التصنيف");
+      setDrawerOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إنشاء التصنيف"),
   });
+
   const createBrand = useMutation({
-    mutationFn: () => adminApi("/api/admin/brands", { method: "POST", body: { name: { ar: brandName, en: brandName }, slug: brandSlug, isActive: true } }),
-    onSuccess: async () => { toast.success("تم إنشاء العلامة"); setBrandName(""); setBrandSlug(""); await queryClient.invalidateQueries({ queryKey: ["/api/admin/brands"] }); },
+    mutationFn: (values: CatalogItemValues) =>
+      adminApi("/api/admin/brands", {
+        method: "POST",
+        body: { name: { ar: values.nameAr, en: values.nameEn || values.nameAr }, slug: values.slug, isActive: true },
+      }),
+    onSuccess: async () => {
+      toast.success("تم إنشاء العلامة التجارية");
+      setDrawerOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/brands"] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إنشاء العلامة"),
   });
+
   const createStore = useMutation({
-    mutationFn: () => adminApi("/api/admin/store-categories", { method: "POST", body: { name: { ar: storeName, en: storeName }, slug: storeSlug, isActive: true } }),
-    onSuccess: async () => { toast.success("تم إنشاء تصنيف المتجر"); setStoreName(""); setStoreSlug(""); await queryClient.invalidateQueries({ queryKey: ["/api/admin/store-categories"] }); },
+    mutationFn: (values: CatalogItemValues) =>
+      adminApi("/api/admin/store-categories", {
+        method: "POST",
+        body: { name: { ar: values.nameAr, en: values.nameEn || values.nameAr }, slug: values.slug, isActive: true },
+      }),
+    onSuccess: async () => {
+      toast.success("تم إنشاء تصنيف المتجر");
+      setDrawerOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/store-categories"] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إنشاء تصنيف المتجر"),
   });
 
+  const isImporting = importAllCategories.isPending || importAllBrands.isPending || importProgress !== null;
+
+  const drawerLabels: Record<typeof drawerTarget, { title: string; description: string }> = {
+    category: { title: "إضافة تصنيف جديد", description: "أدخل بيانات التصنيف لإضافته إلى الكتالوج." },
+    brand: { title: "إضافة علامة تجارية", description: "أدخل بيانات العلامة التجارية الجديدة." },
+    store: { title: "إضافة تصنيف متجر", description: "أدخل بيانات تصنيف المتجر الجديد." },
+  };
+
+  function openDrawer(target: typeof drawerTarget) {
+    setDrawerTarget(target);
+    setDrawerOpen(true);
+  }
+
+  function handleDrawerSubmit(values: CatalogItemValues) {
+    if (drawerTarget === "category") createCategory.mutate(values);
+    else if (drawerTarget === "brand") createBrand.mutate(values);
+    else createStore.mutate(values);
+  }
+
+  const drawerPending = createCategory.isPending || createBrand.isPending || createStore.isPending;
+
   return (
     <div className="space-y-6">
-      <PageHeader title="الكتالوج" description="إدارة التصنيفات والعلامات وتصنيفات المتاجر." />
-      <div className="flex flex-wrap gap-2">
-        <Link href="/catalog/brands" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">العلامات التجارية</Link>
-        <Link href="/catalog/store-categories" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">تصنيفات المتاجر</Link>
-        <Link href="/catalog/attributes" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">خصائص التصنيفات</Link>
-      </div>
-      {importProgress ? (
-        <SectionCard>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="font-bold text-ink-strong">جاري الاستيراد...</span>
-              <span className="text-ink-muted">{importProgress.current} من {importProgress.total}</span>
-            </div>
-            <Progress value={(importProgress.current / importProgress.total) * 100} />
+      <PageHeader
+        title="الكتالوج"
+        description="إدارة التصنيفات والعلامات التجارية وتصنيفات المتاجر في مكان واحد."
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href="/catalog/attributes" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-ink-strong shadow-sm transition hover:bg-muted">
+              <Layers className="h-3.5 w-3.5" />
+              خصائص التصنيفات
+            </Link>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setImportExpanded((p) => !p)}>
+              <Download className="h-3.5 w-3.5" />
+              استيراد بيانات
+              {importExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </Button>
           </div>
-        </SectionCard>
-      ) : null}
-      <SectionCard
-        title="استيراد بيانات Noon.com"
-        description="استيراد جميع التصنيفات والعلامات التجارية من ملف البيانات"
-      >
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            type="button"
-            variant="primary"
-            onClick={() => importAllCategories.mutate()}
-            disabled={importAllCategories.isPending || importAllBrands.isPending || importProgress !== null}
-            className="flex-1"
-          >
-            {importAllCategories.isPending ? "جاري الاستيراد..." : "استيراد التصنيفات"}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => importAllBrands.mutate()}
-            disabled={importAllBrands.isPending || importAllCategories.isPending || importProgress !== null}
-            className="flex-1"
-          >
-            {importAllBrands.isPending ? "جاري الاستيراد..." : "استيراد العلامات"}
-          </Button>
-        </div>
-      </SectionCard>
-      <SimpleCreateForm title="إضافة تصنيف" pending={createCategory.isPending} onSubmit={() => createCategory.mutate()} fields={[{ label: "الاسم", value: categoryName, onChange: setCategoryName, required: true }, { label: "Slug", value: categorySlug, onChange: setCategorySlug, required: true }]} />
-      <ResourceList<AnyRecord> title="التصنيفات" description="" path="/api/admin/categories" query={{ flat: "true", withCounts: "true" }} columns={[
-        {
-          id: "image",
-          header: "الصورة",
-          cell: (r) => r.imageUrl ? (
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted">
-              <ClickableImageWithFileFallback src={String(r.imageUrl)} alt="Category" className="h-full w-full object-cover" noWrapper={true} />
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <CatalogStatCard icon={<FolderTree className="h-5 w-5" />} label="التصنيفات" count={categoriesCount.data ?? 0} loading={categoriesCount.isLoading} />
+        <CatalogStatCard icon={<Tag className="h-5 w-5" />} label="العلامات التجارية" count={brandsCount.data ?? 0} loading={brandsCount.isLoading} />
+        <CatalogStatCard icon={<Store className="h-5 w-5" />} label="تصنيفات المتاجر" count={storeCatsCount.data ?? 0} loading={storeCatsCount.isLoading} />
+      </div>
+
+      {importExpanded && (
+        <SectionCard
+          title="استيراد بيانات Noon.com"
+          description="استيراد جميع التصنيفات والعلامات التجارية من ملف البيانات"
+        >
+          {importProgress ? (
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="font-bold text-ink-strong">جاري الاستيراد...</span>
+                <span className="text-ink-muted">{importProgress.current} من {importProgress.total}</span>
+              </div>
+              <Progress value={(importProgress.current / importProgress.total) * 100} />
             </div>
           ) : (
-            <span className="text-xs text-ink-soft">-</span>
-          )
-        },
-        { id: "name", header: "الاسم", cell: (r) => <div><Link href={`/catalog/categories/${idOf(r)}`} className="font-medium text-primary hover:underline">{localizedText(r.name, text(r.slug), "ar")}</Link><div className="text-xs text-ink-muted">{text(r.slug)}</div></div> },
-        { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
-        { id: "count", header: "المنتجات", cell: (r) => text(r.productCount ?? (r._count as AnyRecord | undefined)?.products, "0") },
-        { id: "date", header: "التاريخ", cell: (r) => formatDate(r.createdAt) },
-      ]} normalize={(p) => Array.isArray(p) ? p as AnyRecord[] : []} />
-      <SimpleCreateForm title="إضافة علامة تجارية" pending={createBrand.isPending} onSubmit={() => createBrand.mutate()} fields={[{ label: "الاسم", value: brandName, onChange: setBrandName, required: true }, { label: "Slug", value: brandSlug, onChange: setBrandSlug, required: true }]} />
-      <ResourceList<AnyRecord> title="العلامات التجارية" description="" path="/api/admin/brands" columns={[
-        { id: "name", header: "الاسم", cell: (r) => localizedText(r.name, text(r.slug)) },
-        { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
-        { id: "date", header: "التاريخ", cell: (r) => formatDate(r.createdAt) },
-      ]} />
-      <SimpleCreateForm title="إضافة تصنيف متجر" pending={createStore.isPending} onSubmit={() => createStore.mutate()} fields={[{ label: "الاسم", value: storeName, onChange: setStoreName, required: true }, { label: "المعرّف النصي", value: storeSlug, onChange: setStoreSlug, required: true }]} />
-      <ResourceList<AnyRecord> title="تصنيفات المتاجر" description="" path="/api/admin/store-categories" columns={[
-        { id: "name", header: "الاسم", cell: (r) => localizedText(r.name, text(r.slug)) },
-        { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
-        { id: "date", header: "التاريخ", cell: (r) => formatDate(r.createdAt) },
-      ]} normalize={(p) => Array.isArray(p) ? p as AnyRecord[] : []} />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button type="button" variant="primary" onClick={() => importAllCategories.mutate()} disabled={isImporting} className="flex-1">
+                <Download className="h-4 w-4" />
+                {importAllCategories.isPending ? "جاري الاستيراد..." : "استيراد التصنيفات"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => importAllBrands.mutate()} disabled={isImporting} className="flex-1">
+                <Download className="h-4 w-4" />
+                {importAllBrands.isPending ? "جاري الاستيراد..." : "استيراد العلامات"}
+              </Button>
+            </div>
+          )}
+        </SectionCard>
+      )}
+
+      <Tabs defaultValue="categories" className="gap-4">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="categories">
+            <FolderTree className="h-3.5 w-3.5" />
+            التصنيفات
+          </TabsTrigger>
+          <TabsTrigger value="brands">
+            <Tag className="h-3.5 w-3.5" />
+            العلامات التجارية
+          </TabsTrigger>
+          <TabsTrigger value="store-categories">
+            <Store className="h-3.5 w-3.5" />
+            تصنيفات المتاجر
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="categories" className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-xs flex-1">
+              <CatalogSearchBar value={catSearch} onChange={setCatSearch} placeholder="بحث في التصنيفات..." />
+            </div>
+            <Button type="button" size="sm" onClick={() => openDrawer("category")}>
+              <Plus className="h-4 w-4" />
+              إضافة تصنيف
+            </Button>
+          </div>
+          <CatalogTabContent<AnyRecord>
+            path="/api/admin/categories"
+            query={{ flat: "true", withCounts: "true" }}
+            searchValue={catSearch}
+            normalize={(p) => Array.isArray(p) ? p as AnyRecord[] : []}
+            columns={[
+              {
+                id: "image",
+                header: "الصورة",
+                cell: (r) => r.imageUrl ? (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                    <ClickableImageWithFileFallback src={String(r.imageUrl)} alt="Category" className="h-full w-full object-cover" noWrapper={true} />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-border bg-muted/50">
+                    <FolderTree className="h-5 w-5 text-ink-muted/40" />
+                  </div>
+                ),
+              },
+              {
+                id: "name",
+                header: "الاسم",
+                cell: (r) => (
+                  <div>
+                    <Link href={`/catalog/categories/${idOf(r)}`} className="font-medium text-primary hover:underline">
+                      {localizedText(r.name, text(r.slug), "ar")}
+                    </Link>
+                    <div className="text-xs text-ink-muted">{text(r.slug)}</div>
+                  </div>
+                ),
+              },
+              { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
+              { id: "count", header: "المنتجات", cell: (r) => <span className="font-semibold">{text(r.productCount ?? (r._count as AnyRecord | undefined)?.products, "0")}</span> },
+              { id: "date", header: "التاريخ", cell: (r) => <span className="text-xs text-ink-muted">{formatDate(r.createdAt)}</span> },
+            ]}
+          />
+        </TabsContent>
+
+        <TabsContent value="brands" className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-xs flex-1">
+              <CatalogSearchBar value={brandSearch} onChange={setBrandSearch} placeholder="بحث في العلامات التجارية..." />
+            </div>
+            <Button type="button" size="sm" onClick={() => openDrawer("brand")}>
+              <Plus className="h-4 w-4" />
+              إضافة علامة تجارية
+            </Button>
+          </div>
+          <CatalogTabContent<AnyRecord>
+            path="/api/admin/brands"
+            searchValue={brandSearch}
+            columns={[
+              {
+                id: "name",
+                header: "الاسم",
+                cell: (r) => (
+                  <div>
+                    <span className="font-medium text-ink-strong">{localizedText(r.name, text(r.slug))}</span>
+                    <div className="text-xs text-ink-muted">{text(r.slug)}</div>
+                  </div>
+                ),
+              },
+              { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
+              { id: "date", header: "التاريخ", cell: (r) => <span className="text-xs text-ink-muted">{formatDate(r.createdAt)}</span> },
+            ]}
+          />
+        </TabsContent>
+
+        <TabsContent value="store-categories" className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-xs flex-1">
+              <CatalogSearchBar value={storeSearch} onChange={setStoreSearch} placeholder="بحث في تصنيفات المتاجر..." />
+            </div>
+            <Button type="button" size="sm" onClick={() => openDrawer("store")}>
+              <Plus className="h-4 w-4" />
+              إضافة تصنيف متجر
+            </Button>
+          </div>
+          <CatalogTabContent<AnyRecord>
+            path="/api/admin/store-categories"
+            searchValue={storeSearch}
+            normalize={(p) => Array.isArray(p) ? p as AnyRecord[] : []}
+            columns={[
+              {
+                id: "name",
+                header: "الاسم",
+                cell: (r) => (
+                  <div>
+                    <span className="font-medium text-ink-strong">{localizedText(r.name, text(r.slug))}</span>
+                    <div className="text-xs text-ink-muted">{text(r.slug)}</div>
+                  </div>
+                ),
+              },
+              { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
+              { id: "date", header: "التاريخ", cell: (r) => <span className="text-xs text-ink-muted">{formatDate(r.createdAt)}</span> },
+            ]}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <EntityEditorDrawer<CatalogItemValues>
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        title={drawerLabels[drawerTarget].title}
+        description={drawerLabels[drawerTarget].description}
+        schema={catalogItemSchema}
+        fields={catalogItemFields}
+        defaultValues={defaultCatalogValues}
+        submitLabel="إضافة"
+        pending={drawerPending}
+        onSubmit={handleDrawerSubmit}
+      />
     </div>
   );
 }
@@ -1516,15 +1812,46 @@ const BANNER_POSITIONS = {
 
 export function BannersPage() {
   const queryClient = useQueryClient();
-  const [imageFileId, setImageFileId] = useState("");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [position, setPosition] = useState("HOME_HERO");
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<BannerFormValues>({
+    resolver: zodResolver(bannerSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      position: "HOME_HERO",
+      imageFileId: "",
+      isActive: "true",
+    },
+  });
+
+  const selectedPosition = watch("position");
+
   const create = useMutation({
-    mutationFn: () => adminApi("/api/admin/admin/banners", { method: "POST", body: { imageFileId, title: { ar: title, en: title }, description: { ar: description, en: description }, position, isActive: true } }),
-    onSuccess: async () => { toast.success("تم إنشاء البانر"); setImageFileId(""); setTitle(""); setDescription(""); await queryClient.invalidateQueries({ queryKey: ["/api/admin/admin/banners"] }); },
+    mutationFn: (values: BannerFormValues) =>
+      adminApi("/api/admin/admin/banners", {
+        method: "POST",
+        body: {
+          imageFileId: values.imageFileId,
+          title: { ar: values.title, en: values.title },
+          description: values.description ? { ar: values.description, en: values.description } : undefined,
+          position: values.position,
+          isActive: values.isActive === "true",
+        },
+      }),
+    onSuccess: async () => {
+      toast.success("تم إنشاء البانر");
+      reset();
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/admin/banners"] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إنشاء البانر"),
   });
+
   const toggleActive = useMutation({
     mutationFn: ({ bannerId, isActive }: { bannerId: string; isActive: boolean }) =>
       adminApi(`/api/admin/admin/banners/${bannerId}`, {
@@ -1537,6 +1864,11 @@ export function BannersPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر تحديث حالة البانر"),
   });
+
+  const onSubmit = (values: BannerFormValues) => {
+    create.mutate(values);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -1550,12 +1882,20 @@ export function BannersPage() {
       />
 
       <SectionCard title="إضافة بانر">
-        <form onSubmit={(event) => { event.preventDefault(); create.mutate(); }} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <TextInput label="العنوان" value={title} onChange={setTitle} required />
-            <FormField label="الموضع" hint={BANNER_POSITIONS[position as keyof typeof BANNER_POSITIONS]?.description}>
+            <FormField label="العنوان" required error={errors.title?.message}>
               {(props) => (
-                <FormSelect {...props} value={position} onChange={(e) => setPosition(e.target.value)}>
+                <FormInput
+                  {...props}
+                  invalid={!!errors.title}
+                  {...register("title")}
+                />
+              )}
+            </FormField>
+            <FormField label="الموضع" hint={BANNER_POSITIONS[selectedPosition as keyof typeof BANNER_POSITIONS]?.description} error={errors.position?.message}>
+              {(props) => (
+                <FormSelect {...props} invalid={!!errors.position} {...register("position")}>
                   {Object.entries(BANNER_POSITIONS).map(([key, { label }]) => (
                     <option key={key} value={key}>{label}</option>
                   ))}
@@ -1563,18 +1903,35 @@ export function BannersPage() {
               )}
             </FormField>
           </div>
-          <FormField label="الوصف">
+          <FormField label="الوصف" error={errors.description?.message}>
             {(props) => (
               <FormInput
                 {...props}
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
                 placeholder="أدخل وصف البانر (اختياري)"
+                invalid={!!errors.description}
+                {...register("description")}
               />
             )}
           </FormField>
-          <ImageUploadInput label="صورة البانر" value={imageFileId} onChange={setImageFileId} purpose="BANNER_IMAGE" required />
-          <Button type="submit" size="sm" disabled={create.isPending || !imageFileId}>
+          <div className="space-y-1.5">
+            <Controller
+              control={control}
+              name="imageFileId"
+              render={({ field }) => (
+                <ImageUploadInput
+                  label="صورة البانر"
+                  value={field.value}
+                  onChange={field.onChange}
+                  purpose="BANNER_IMAGE"
+                  required
+                />
+              )}
+            />
+            {errors.imageFileId && (
+              <p className="text-xs font-semibold text-destructive">{errors.imageFileId.message}</p>
+            )}
+          </div>
+          <Button type="submit" size="sm" disabled={create.isPending}>
             حفظ
           </Button>
         </form>
@@ -1586,7 +1943,7 @@ export function BannersPage() {
           header: "الصورة",
           cell: (r) => r.imageUrl ? (
             <div className="h-20 w-40 shrink-0 overflow-hidden rounded-xl border border-border">
-              <ClickableImageWithFileFallback src={String(r.imageUrl)} alt={localizedText(r.title, "Banner", "ar")} className="h-full w-full object-cover" noWrapper={true} />
+              <ClickableImageWithFileFallback src={String(r.imageUrl)} alt={localizedText(r.title, "البانر", "ar")} className="h-full w-full object-cover" noWrapper={true} />
             </div>
           ) : (
             <span className="text-xs text-ink-soft">-</span>
@@ -1617,44 +1974,372 @@ export function BannersPage() {
 
 export function ShippingPage() {
   const queryClient = useQueryClient();
-  const [zoneName, setZoneName] = useState("");
-  const [countryId, setCountryId] = useState("");
-  const [methodName, setMethodName] = useState("");
-  const [methodCode, setMethodCode] = useState("");
-  const [etaMin, setEtaMin] = useState("1");
-  const [etaMax, setEtaMax] = useState("3");
-  const createZone = useMutation({
-    mutationFn: () => adminApi("/api/admin/shipping/admin/zones", { method: "POST", body: { name: { ar: zoneName, en: zoneName }, scope: "COUNTRY", countryId: Number(countryId), isActive: true } }),
-    onSuccess: async () => { toast.success("تم إنشاء منطقة الشحن"); setZoneName(""); setCountryId(""); await queryClient.invalidateQueries({ queryKey: ["/api/admin/shipping/zones"] }); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إنشاء المنطقة"),
+  const [activeTab, setActiveTab] = useState("zones");
+  const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
+  const [methodDrawerOpen, setMethodDrawerOpen] = useState(false);
+  const [editingZone, setEditingZone] = useState<AnyRecord | null>(null);
+  const [editingMethod, setEditingMethod] = useState<AnyRecord | null>(null);
+  const { confirm, element: confirmElement } = useConfirmDialog();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncAllGovernorates = async () => {
+    try {
+      setIsSyncing(true);
+      const cities = await adminApi<AnyRecord[]>("/api/admin/admin/locations/cities");
+      if (!Array.isArray(cities) || cities.length === 0) {
+        toast.error("لم يتم العثور على أي محافظات/مدن. يرجى تهيئة المواقع الجغرافية أولاً.");
+        return;
+      }
+
+      const existingCityIds = new Set(
+        zonesList
+          .filter((z) => String(z.scope) === "CITY" && z.cityId)
+          .map((z) => String(z.cityId))
+      );
+
+      const missingCities = cities.filter(
+        (c) => !existingCityIds.has(String(c.id))
+      );
+
+      if (missingCities.length === 0) {
+        toast.info("جميع المحافظات مضافة بالفعل كالمناطق شحن.");
+        return;
+      }
+
+      toast.loading(`جاري إضافة ${missingCities.length} محافظة كمناطق شحن...`, { id: "sync-zones" });
+
+      for (const city of missingCities) {
+        const nameAr = typeof city.name === "object" ? String((city.name as AnyRecord)?.ar || "") : String(city.name ?? "");
+        const nameEn = typeof city.name === "object" ? String((city.name as AnyRecord)?.en || "") : "";
+        await adminApi(adminPaths.shippingAdminZones(), {
+          method: "POST",
+          body: {
+            name: { ar: nameAr || "غير معروف", en: nameEn || "" },
+            scope: "CITY",
+            countryId: Number(city.countryId ?? 1),
+            cityId: Number(city.id),
+            isActive: true,
+          },
+        });
+      }
+
+      toast.success("تمت إضافة جميع المحافظات كمناطق شحن بنجاح", { id: "sync-zones" });
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/shipping/zones"] });
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "حدث خطأ أثناء إضافة المحافظات", { id: "sync-zones" });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const zones = useQuery({
+    queryKey: ["/api/admin/shipping/zones"],
+    queryFn: () => adminApi<AnyRecord[]>("/api/admin/shipping/zones"),
   });
-  const createMethod = useMutation({
-    mutationFn: () => adminApi("/api/admin/shipping/admin/methods", { method: "POST", body: { name: { ar: methodName, en: methodName }, code: methodCode, etaMinDays: Number(etaMin), etaMaxDays: Number(etaMax), isActive: true } }),
-    onSuccess: async () => { toast.success("تم إنشاء طريقة الشحن"); setMethodName(""); setMethodCode(""); await queryClient.invalidateQueries({ queryKey: ["/api/admin/shipping/methods"] }); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إنشاء الطريقة"),
+  const methods = useQuery({
+    queryKey: ["/api/admin/shipping/methods"],
+    queryFn: () => adminApi<AnyRecord[]>("/api/admin/shipping/methods"),
   });
+
+  const zonesList = Array.isArray(zones.data) ? zones.data : [];
+  const methodsList = Array.isArray(methods.data) ? methods.data : [];
+
+  const saveZone = useMutation({
+    mutationFn: (values: AnyRecord) => {
+      const body = {
+        name: { ar: String(values.nameAr ?? ""), en: String(values.nameEn ?? "") },
+        scope: String(values.scope ?? "COUNTRY"),
+        countryId: Number(values.countryId),
+        cityId: values.cityId ? Number(values.cityId) : undefined,
+        areaId: values.areaId ? Number(values.areaId) : undefined,
+        isActive: values.isActive === "true" || values.isActive === true,
+      };
+      if (editingZone) {
+        return adminApi(adminPaths.shippingAdminZoneDetail(String(editingZone.publicId)), { method: "PATCH", body });
+      }
+      return adminApi(adminPaths.shippingAdminZones(), { method: "POST", body });
+    },
+    onSuccess: async () => {
+      toast.success(editingZone ? "تم تحديث منطقة الشحن" : "تم إنشاء منطقة الشحن");
+      setZoneDrawerOpen(false);
+      setEditingZone(null);
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/shipping/zones"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر حفظ المنطقة"),
+  });
+
+  const deleteZone = useMutation({
+    mutationFn: (publicId: string) =>
+      adminApi(adminPaths.shippingAdminZoneDetail(publicId), { method: "DELETE" }),
+    onSuccess: async () => {
+      toast.success("تم حذف منطقة الشحن");
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/shipping/zones"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر حذف المنطقة"),
+  });
+
+  const saveMethod = useMutation({
+    mutationFn: (values: AnyRecord) => {
+      const body = {
+        name: { ar: String(values.nameAr ?? ""), en: String(values.nameEn ?? "") },
+        code: String(values.code ?? ""),
+        carrierLabel: values.carrierLabel ? String(values.carrierLabel) : undefined,
+        etaMinDays: Number(values.etaMinDays ?? 1),
+        etaMaxDays: Number(values.etaMaxDays ?? 3),
+        isActive: values.isActive === "true" || values.isActive === true,
+      };
+      if (editingMethod) {
+        return adminApi(adminPaths.shippingAdminMethodDetail(String(editingMethod.publicId)), { method: "PATCH", body });
+      }
+      return adminApi(adminPaths.shippingAdminMethods(), { method: "POST", body });
+    },
+    onSuccess: async () => {
+      toast.success(editingMethod ? "تم تحديث طريقة الشحن" : "تم إنشاء طريقة الشحن");
+      setMethodDrawerOpen(false);
+      setEditingMethod(null);
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/shipping/methods"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر حفظ الطريقة"),
+  });
+
+  const deleteMethod = useMutation({
+    mutationFn: (publicId: string) =>
+      adminApi(adminPaths.shippingAdminMethodDetail(publicId), { method: "DELETE" }),
+    onSuccess: async () => {
+      toast.success("تم حذف طريقة الشحن");
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/shipping/methods"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر حذف الطريقة"),
+  });
+
+  const zoneSchema = z.object({
+    nameAr: z.string().min(1, "الاسم بالعربية مطلوب"),
+    nameEn: z.string().optional().default(""),
+    scope: z.string().default("COUNTRY"),
+    countryId: z.string().min(1, "معرف الدولة مطلوب"),
+    cityId: z.string().optional().default(""),
+    areaId: z.string().optional().default(""),
+    isActive: z.string().default("true"),
+  });
+
+  const methodSchema = z.object({
+    nameAr: z.string().min(1, "الاسم بالعربية مطلوب"),
+    nameEn: z.string().optional().default(""),
+    code: z.string().min(2, "الكود مطلوب (حرفين على الأقل)"),
+    carrierLabel: z.string().optional().default(""),
+    etaMinDays: z.string().min(1, "أقل عدد أيام مطلوب"),
+    etaMaxDays: z.string().min(1, "أقصى عدد أيام مطلوب"),
+    isActive: z.string().default("true"),
+  });
+
+  type ZoneValues = z.infer<typeof zoneSchema>;
+  type MethodValues = z.infer<typeof methodSchema>;
+
+  const zoneFields: EditorField<ZoneValues>[] = [
+    { name: "nameAr", label: "الاسم بالعربية", required: true, colSpan: 2 },
+    { name: "nameEn", label: "الاسم بالإنجليزية", dir: "ltr", colSpan: 2 },
+    { name: "scope", label: "النطاق", kind: "select", options: [{ value: "COUNTRY", label: "دولة" }, { value: "CITY", label: "مدينة" }, { value: "AREA", label: "منطقة" }], required: true },
+    { name: "countryId", label: "معرف الدولة (رقمي)", required: true },
+    { name: "cityId", label: "معرف المدينة (اختياري)" },
+    { name: "areaId", label: "معرف المنطقة (اختياري)" },
+    { name: "isActive", label: "الحالة", kind: "select", options: [{ value: "true", label: "نشطة" }, { value: "false", label: "غير نشطة" }] },
+  ];
+
+  const methodFields: EditorField<MethodValues>[] = [
+    { name: "nameAr", label: "الاسم بالعربية", required: true, colSpan: 2 },
+    { name: "nameEn", label: "الاسم بالإنجليزية", dir: "ltr", colSpan: 2 },
+    { name: "code", label: "الكود", required: true, placeholder: "STANDARD_DELIVERY", dir: "ltr" },
+    { name: "carrierLabel", label: "اسم شركة الشحن", placeholder: "مثال: أرامكس" },
+    { name: "etaMinDays", label: "أقل عدد أيام توصيل", required: true },
+    { name: "etaMaxDays", label: "أقصى عدد أيام توصيل", required: true },
+    { name: "isActive", label: "الحالة", kind: "select", options: [{ value: "true", label: "نشطة" }, { value: "false", label: "غير نشطة" }] },
+  ];
+
+  function i18nVal(name: unknown, locale: "ar" | "en") {
+    if (name && typeof name === "object") {
+      return String((name as AnyRecord)[locale] ?? "");
+    }
+    return locale === "ar" && typeof name === "string" ? name : "";
+  }
+
   return (
     <div className="space-y-6">
-      <PageHeader title="الشحن" description="إدارة مناطق وطرق الشحن واختبار التهيئة." />
-      <div className="flex flex-wrap gap-2">
-        <Link href="/shipping/zones" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">مناطق الشحن</Link>
-        <Link href="/shipping/methods" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">طرق الشحن</Link>
-        <Link href="/shipping/vendor-rates" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">أسعار البائعين</Link>
-        <Link href="/shipping/quote-tester" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">اختبار السعر</Link>
-      </div>
-      <SimpleCreateForm title="إضافة منطقة شحن" pending={createZone.isPending} onSubmit={() => createZone.mutate()} fields={[{ label: "الاسم", value: zoneName, onChange: setZoneName, required: true }, { label: "معرف الدولة الرقمي", value: countryId, onChange: setCountryId, required: true }]} />
-      <ResourceList<AnyRecord> title="مناطق الشحن" description="" path="/api/admin/shipping/zones" normalize={(p) => Array.isArray(p) ? p as AnyRecord[] : []} columns={[
-        { id: "name", header: "الاسم", cell: (r) => localizedText(r.name, text(r.code)) },
-        { id: "scope", header: "النطاق", cell: (r) => text(r.scope) },
-        { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
-      ]} />
-      <SimpleCreateForm title="إضافة طريقة شحن" pending={createMethod.isPending} onSubmit={() => createMethod.mutate()} fields={[{ label: "الاسم", value: methodName, onChange: setMethodName, required: true }, { label: "الكود", value: methodCode, onChange: setMethodCode, required: true }, { label: "أقل أيام", value: etaMin, onChange: setEtaMin, required: true }, { label: "أقصى أيام", value: etaMax, onChange: setEtaMax, required: true }]} />
-      <ResourceList<AnyRecord> title="طرق الشحن" description="" path="/api/admin/shipping/methods" normalize={(p) => Array.isArray(p) ? p as AnyRecord[] : []} columns={[
-        { id: "name", header: "الاسم", cell: (r) => localizedText(r.name, text(r.code)) },
-        { id: "code", header: "الكود", cell: (r) => text(r.code) },
-        { id: "eta", header: "المدة", cell: (r) => `${text(r.etaMinDays, "0")} - ${text(r.etaMaxDays, "0")} يوم` },
-        { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
-      ]} />
+      <PageHeader
+        title="الشحن"
+        description="إدارة مناطق وطرق الشحن وتعريفات الأسعار واختبار التهيئة."
+        actions={
+          <div className="flex gap-2">
+            <Link href="/shipping/vendor-rates" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">أسعار البائعين</Link>
+            <Link href="/shipping/quote-tester" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">اختبار السعر</Link>
+          </div>
+        }
+      />
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="zones">مناطق الشحن ({zonesList.length})</TabsTrigger>
+          <TabsTrigger value="methods">طرق الشحن ({methodsList.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="zones" className="space-y-4">
+          <SectionCard
+            title="مناطق الشحن"
+            description="تحديد المناطق الجغرافية المخدومة بالتوصيل."
+            actions={
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={isSyncing}
+                  onClick={handleSyncAllGovernorates}
+                >
+                  <RefreshCw className={`me-1.5 size-4 ${isSyncing ? "animate-spin" : ""}`} />
+                  تهيئة جميع المحافظات
+                </Button>
+                <Button type="button" variant="primary" onClick={() => { setEditingZone(null); setZoneDrawerOpen(true); }}>
+                  <Plus className="me-1.5 size-4" />
+                  إضافة منطقة
+                </Button>
+              </div>
+            }
+          >
+            {zones.isLoading ? (
+              <TableSkeleton />
+            ) : zones.isError ? (
+              <ErrorState message={zones.error.message} />
+            ) : zonesList.length === 0 ? (
+              <EmptyState title="لا توجد مناطق شحن" description="ابدأ بإضافة منطقة شحن جديدة." />
+            ) : (
+              <CursorDataTable
+                data={zonesList}
+                getRowKey={(r) => String(r.publicId ?? r.id)}
+                columns={[
+                  { id: "name", header: "الاسم", cell: (r) => <div><div className="font-medium text-ink-strong">{localizedText(r.name, "-", "ar")}</div>{i18nVal(r.name, "en") ? <div className="text-xs text-ink-muted">{i18nVal(r.name, "en")}</div> : null}</div> },
+                  { id: "scope", header: "النطاق", cell: (r) => <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-ink-strong">{text(r.scope)}</span> },
+                  { id: "country", header: "الدولة", cell: (r) => text(r.countryId) },
+                  { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
+                  { id: "created", header: "تاريخ الإنشاء", cell: (r) => formatDate(r.createdAt) },
+                  {
+                    id: "actions", header: "إجراءات", cell: (r) => (
+                      <div className="flex gap-1">
+                        <Button type="button" size="sm" variant="secondary" onClick={() => { setEditingZone(r); setZoneDrawerOpen(true); }}>تعديل</Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline-danger"
+                          disabled={deleteZone.isPending}
+                          onClick={async () => {
+                            const result = await confirm({ title: "حذف منطقة الشحن", description: "سيتم حذف هذه المنطقة نهائياً.", confirmLabel: "حذف", variant: "danger" });
+                            if (result.confirmed) deleteZone.mutate(String(r.publicId));
+                          }}
+                        >
+                          حذف
+                        </Button>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            )}
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="methods" className="space-y-4">
+          <SectionCard
+            title="طرق الشحن"
+            description="طرق التوصيل المتاحة مع مدة التسليم المتوقعة."
+            actions={
+              <Button type="button" variant="primary" onClick={() => { setEditingMethod(null); setMethodDrawerOpen(true); }}>
+                <Plus className="me-1.5 size-4" />
+                إضافة طريقة
+              </Button>
+            }
+          >
+            {methods.isLoading ? (
+              <TableSkeleton />
+            ) : methods.isError ? (
+              <ErrorState message={methods.error.message} />
+            ) : methodsList.length === 0 ? (
+              <EmptyState title="لا توجد طرق شحن" description="ابدأ بإضافة طريقة شحن جديدة." />
+            ) : (
+              <CursorDataTable
+                data={methodsList}
+                getRowKey={(r) => String(r.publicId ?? r.id)}
+                columns={[
+                  { id: "name", header: "الاسم", cell: (r) => <div><div className="font-medium text-ink-strong">{localizedText(r.name, "-", "ar")}</div>{i18nVal(r.name, "en") ? <div className="text-xs text-ink-muted">{i18nVal(r.name, "en")}</div> : null}</div> },
+                  { id: "code", header: "الكود", cell: (r) => <span className="font-mono text-xs font-semibold text-ink-strong">{text(r.code)}</span> },
+                  { id: "carrier", header: "شركة الشحن", cell: (r) => text(r.carrierLabel) },
+                  { id: "eta", header: "مدة التوصيل", cell: (r) => `${text(r.etaMinDays, "0")} - ${text(r.etaMaxDays, "0")} يوم` },
+                  { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={r.isActive === false ? "INACTIVE" : "ACTIVE"} /> },
+                  { id: "created", header: "تاريخ الإنشاء", cell: (r) => formatDate(r.createdAt) },
+                  {
+                    id: "actions", header: "إجراءات", cell: (r) => (
+                      <div className="flex gap-1">
+                        <Button type="button" size="sm" variant="secondary" onClick={() => { setEditingMethod(r); setMethodDrawerOpen(true); }}>تعديل</Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline-danger"
+                          disabled={deleteMethod.isPending}
+                          onClick={async () => {
+                            const result = await confirm({ title: "حذف طريقة الشحن", description: "سيتم حذف هذه الطريقة نهائياً.", confirmLabel: "حذف", variant: "danger" });
+                            if (result.confirmed) deleteMethod.mutate(String(r.publicId));
+                          }}
+                        >
+                          حذف
+                        </Button>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            )}
+          </SectionCard>
+        </TabsContent>
+      </Tabs>
+
+      <EntityEditorDrawer<ZoneValues>
+        open={zoneDrawerOpen}
+        onOpenChange={setZoneDrawerOpen}
+        title={editingZone ? "تعديل منطقة الشحن" : "إضافة منطقة شحن جديدة"}
+        description="حدد اسم المنطقة ونطاقها الجغرافي وحالة التفعيل."
+        schema={zoneSchema}
+        pending={saveZone.isPending}
+        defaultValues={editingZone ? {
+          nameAr: i18nVal(editingZone.name, "ar"),
+          nameEn: i18nVal(editingZone.name, "en"),
+          scope: String(editingZone.scope ?? "COUNTRY"),
+          countryId: String(editingZone.countryId ?? ""),
+          cityId: String(editingZone.cityId ?? ""),
+          areaId: String(editingZone.areaId ?? ""),
+          isActive: editingZone.isActive === false ? "false" : "true",
+        } : { nameAr: "", nameEn: "", scope: "COUNTRY", countryId: "", cityId: "", areaId: "", isActive: "true" }}
+        fields={zoneFields}
+        onSubmit={(values) => saveZone.mutate(values as unknown as AnyRecord)}
+      />
+
+      <EntityEditorDrawer<MethodValues>
+        open={methodDrawerOpen}
+        onOpenChange={setMethodDrawerOpen}
+        title={editingMethod ? "تعديل طريقة الشحن" : "إضافة طريقة شحن جديدة"}
+        description="حدد اسم طريقة الشحن وكودها ومدة التوصيل المتوقعة."
+        schema={methodSchema}
+        pending={saveMethod.isPending}
+        defaultValues={editingMethod ? {
+          nameAr: i18nVal(editingMethod.name, "ar"),
+          nameEn: i18nVal(editingMethod.name, "en"),
+          code: String(editingMethod.code ?? ""),
+          carrierLabel: String(editingMethod.carrierLabel ?? ""),
+          etaMinDays: String(editingMethod.etaMinDays ?? "1"),
+          etaMaxDays: String(editingMethod.etaMaxDays ?? "3"),
+          isActive: editingMethod.isActive === false ? "false" : "true",
+        } : { nameAr: "", nameEn: "", code: "", carrierLabel: "", etaMinDays: "1", etaMaxDays: "3", isActive: "true" }}
+        fields={methodFields}
+        onSubmit={(values) => saveMethod.mutate(values as unknown as AnyRecord)}
+      />
+
+      {confirmElement}
     </div>
   );
 }
@@ -1728,11 +2413,6 @@ export function BillingPage() {
         { label: "الحالة", value: reviewStatus, onChange: setReviewStatus, required: true, placeholder: "SUCCEEDED / FAILED / REJECTED" },
         { label: "سبب الرفض", value: rejectionReason, onChange: setRejectionReason },
       ]} />
-      <BackendPendingNotice
-        endpoint="GET /v1/admin/vendor-billing/accounts"
-        priority="P1"
-        description="الخلفية توفر ملخص وفواتير ومعاملات البائع عبر /v1/vendors/:vendorId/billing فقط، وتوفر للإدارة تشغيل الفوترة ومراجعة الدفعات. تحتاج اللوحة إلى endpoint إداري عام لقائمة الفواتير والدفعات."
-      />
     </div>
   );
 }

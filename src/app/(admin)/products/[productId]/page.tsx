@@ -9,7 +9,7 @@ export default async function ProductDetailPage({
   params: Promise<{ productId: string }>;
 }) {
   const { productId } = await params;
-  await requirePagePermission("catalog:write");
+  await requirePagePermission("products:review");
 
   return <ProductDetail productId={productId} />;
 }

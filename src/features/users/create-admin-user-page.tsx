@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -20,14 +20,6 @@ import type {
   AdminUserCreateResponse,
 } from "@/lib/api/types";
 import { ApiError } from "@/lib/api/errors";
-import { cn } from "@/lib/utils";
-
-const AVAILABLE_ROLES = [
-  { value: "ADMIN", label: "مدير" },
-  { value: "SUPER_ADMIN", label: "مدير عام" },
-  { value: "STAFF_ADMIN", label: "موظف إدارة" },
-  { value: "OWNER", label: "مالك" },
-] as const;
 
 const schema = z.object({
   firstName: z.string().trim().min(1, "الاسم الأول مطلوب"),
@@ -38,9 +30,6 @@ const schema = z.object({
     .min(8, "8 أحرف على الأقل")
     .regex(/[A-Z]/, "حرف كبير واحد على الأقل")
     .regex(/[0-9]/, "رقم واحد على الأقل"),
-  roles: z
-    .array(z.string())
-    .min(1, "اختر دوراً واحداً على الأقل"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -49,7 +38,6 @@ export function CreateAdminUserPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
-    control,
     handleSubmit,
     register,
     setError,
@@ -61,7 +49,6 @@ export function CreateAdminUserPage() {
       lastName: "",
       email: "",
       password: "",
-      roles: ["ADMIN"],
     },
   });
 
@@ -72,13 +59,13 @@ export function CreateAdminUserPage() {
         body: payload,
       }),
     onSuccess: async (data) => {
-      toast.success(`تم إنشاء المستخدم ${data.email}`);
+      toast.success(`تم إنشاء المشرف ${data.email}`);
       await queryClient.invalidateQueries({ queryKey: ["users"] });
       router.push("/admins");
     },
     onError: (error) => {
       const message =
-        error instanceof Error ? error.message : "تعذر إنشاء المستخدم";
+        error instanceof Error ? error.message : "تعذر إنشاء المشرف";
       toast.error(message);
       if (error instanceof ApiError && error.statusCode === 409) {
         setError("email", { type: "server", message: "البريد مستخدم بالفعل" });
@@ -87,19 +74,19 @@ export function CreateAdminUserPage() {
   });
 
   function onSubmit(values: FormValues) {
-    mutation.mutate(values);
+    mutation.mutate({ ...values, roles: ["MODERATOR"] });
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="إنشاء مستخدم إداري"
-        description="إضافة مستخدم جديد إلى نظام إدارة المنصة بدور وصلاحيات محددة."
+        title="إنشاء مشرف جديد"
+        description="إضافة مشرف جديد بصلاحيات محدودة: إدارة البانرات، مراجعة KYC، المنتجات، والمتاجر."
       />
 
       <SectionCard
         title="بيانات الحساب"
-        description="سيُسمح للمستخدم الجديد بتسجيل الدخول إلى لوحة الإدارة فور إنشائه."
+        description="سيُسمح للمشرف بتسجيل الدخول إلى لوحة الإدارة فور إنشائه بصلاحيات مشرف محدودة."
       >
         {mutation.isError && !(mutation.error instanceof ApiError) ? (
           <ErrorState message={(mutation.error as Error).message} />
@@ -158,52 +145,11 @@ export function CreateAdminUserPage() {
             )}
           </FormField>
 
-          <div className="md:col-span-2 space-y-2">
-            <label className="block text-sm font-bold text-ink-strong">
-              الأدوار
-              <span className="text-destructive ms-1">*</span>
-            </label>
-            <Controller
-              name="roles"
-              control={control}
-              render={({ field }) => (
-                <div className="flex flex-wrap gap-2">
-                  {AVAILABLE_ROLES.map((role) => {
-                    const checked = field.value.includes(role.value);
-                    return (
-                      <label
-                        key={role.value}
-                        className={cn(
-                          "inline-flex cursor-pointer items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-bold transition",
-                          checked
-                            ? "border-primary bg-primary-soft text-primary"
-                            : "border-border bg-card text-ink-muted hover:border-primary/50",
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-primary"
-                          checked={checked}
-                          onChange={(event) => {
-                            if (event.target.checked) {
-                              field.onChange([...field.value, role.value]);
-                            } else {
-                              field.onChange(
-                                field.value.filter((v) => v !== role.value),
-                              );
-                            }
-                          }}
-                        />
-                        {role.label}
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            />
-            {errors.roles?.message ? (
-              <p className="text-xs text-destructive">{errors.roles.message}</p>
-            ) : null}
+          <div className="md:col-span-2 rounded-xl border border-primary/20 bg-primary-soft/30 px-4 py-3">
+            <div className="text-sm font-bold text-primary">الدور: مشرف (Moderator)</div>
+            <p className="mt-1 text-xs text-ink-muted">
+              سيتمكن المشرف من: إدارة البانرات الإعلانية، مراجعة طلبات KYC والموافقة عليها، مراجعة المنتجات والمتاجر.
+            </p>
           </div>
 
           <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
@@ -222,7 +168,7 @@ export function CreateAdminUserPage() {
               {mutation.isPending ? (
                 <LoadingState label="جار الإنشاء" />
               ) : (
-                "إنشاء المستخدم"
+                "إنشاء المشرف"
               )}
             </Button>
           </div>
