@@ -1,17 +1,16 @@
 "use client";
 
-import * as React from "react";
-import { Clock, Power } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { Clock } from "lucide-react";
+import * as React from "react";
 
-import { SectionCard } from "@/components/ui/section-card";
-import { Switch } from "@/components/ui/switch";
+import { ErrorState, LoadingState } from "@/components/state/async-states";
 import {
   ActivityItem,
   ActivityTimeline,
   type ActivityTone,
 } from "@/components/ui/activity-item";
-import { ErrorState, LoadingState } from "@/components/state/async-states";
+import { SectionCard } from "@/components/ui/section-card";
 import { adminApi } from "@/lib/api/admin-client";
 import { adminPaths } from "@/lib/api/paths";
 import { queryKeys } from "@/lib/api/query-keys";
@@ -80,16 +79,6 @@ export function ActivityFeed({
     <SectionCard
       title="سجل النشاط المباشر"
       description="آخر أحداث المنصة"
-      actions={
-        <div className="flex items-center gap-2 text-[11px] text-ink-muted">
-          <Power className="size-3.5" />
-          <Switch
-            checked={Boolean(live)}
-            onCheckedChange={(value) => onLiveToggle?.(value)}
-            aria-label="تحديث تلقائي"
-          />
-        </div>
-      }
     >
       {isLoading ? (
         <LoadingState label="جار التحميل" />

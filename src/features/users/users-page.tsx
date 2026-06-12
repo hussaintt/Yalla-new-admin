@@ -56,35 +56,9 @@ function RoleAssignment({
   const queryClient = useQueryClient();
   const [roleId, setRoleId] = useState("");
 
-  const assignRole = useMutation({
-    mutationFn: () =>
-      adminApi("/api/admin/roles/assign", {
-        method: "POST",
-        body: { userId: user.id, roleId: Number(roleId) },
-      }),
-    onSuccess: async () => {
-      toast.success("تم تعيين الدور");
-      setRoleId("");
-      await queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "تعذر تعيين الدور");
-    },
-  });
 
-  const revokeRole = useMutation({
-    mutationFn: (nextRoleId: number) =>
-      adminApi(`/api/admin/roles/users/${user.id}/roles/${nextRoleId}`, {
-        method: "DELETE",
-      }),
-    onSuccess: async () => {
-      toast.success("تم حذف الدور");
-      await queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "تعذر حذف الدور");
-    },
-  });
+
+
 
   return (
     <div className="space-y-2">
@@ -98,42 +72,14 @@ function RoleAssignment({
               className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-ink-strong"
             >
               {label}
-              {id && label !== "ADMIN" ? (
-                <button
-                  type="button"
-                  onClick={() => revokeRole.mutate(id)}
-                  className="text-ink-soft transition hover:text-destructive"
-                  title="حذف الدور"
-                >
-                  ×
-                </button>
-              ) : null}
+
             </span>
           );
         })}
       </div>
       <div className="flex gap-2">
-        <select
-          value={roleId}
-          onChange={(event) => setRoleId(event.target.value)}
-          className="h-8 min-w-32 rounded-md border border-border bg-card px-2 text-xs text-ink-strong outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-        >
-          <option value="">تعيين دور</option>
-          {roles.map((role) => (
-            <option key={role.id} value={role.id}>
-              {role.name}
-            </option>
-          ))}
-        </select>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={!roleId || assignRole.isPending}
-          onClick={() => assignRole.mutate()}
-        >
-          إضافة
-        </Button>
+
+
       </div>
     </div>
   );

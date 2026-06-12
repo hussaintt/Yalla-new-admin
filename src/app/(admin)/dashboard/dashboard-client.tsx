@@ -3,10 +3,13 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   AlertTriangle,
   Banknote,
+  ClipboardCheck,
   CreditCard,
   Download,
+  Home,
   ShieldCheck,
   ShoppingBag,
   Store,
@@ -14,12 +17,13 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { PageHeader } from "@/components/layout/page-header";
 import { useCurrentAdmin } from "@/features/auth/use-current-admin";
 import { ErrorState, LoadingState } from "@/components/state/async-states";
 import { KpiCard, type KpiTone } from "@/components/ui/kpi-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WelcomeBanner } from "@/components/ui/welcome-banner";
 
 import { BillingCycleCard } from "@/components/dashboard/billing-cycle-card";
 import { CommissionRatesCard } from "@/components/dashboard/commission-rates-card";
@@ -208,120 +212,271 @@ export default function DashboardPage() {
     },
   ];
 
+  const kpiRevenue = kpis[0];
+  const kpiCommission = kpis[1];
+  const kpiVendors = kpis[2];
+  const kpiOrders = kpis[3];
+  const kpiUsers = kpis[4];
+  const kpiPayouts = kpis[5];
+  const kpiKyc = kpis[6];
+  const kpiAlerts = kpis[7];
+
   return (
     <div className="space-y-6">
-      <PageHeader
+      <WelcomeBanner
         title={`أهلاً ${adminName}، منصتك بتنمو بقوة`}
-        description="مؤشرات السوق، قوائم الاعتماد، إشارات الإيراد، وآخر نشاط إداري."
-        date={todayArabic()}
+        description={`إليك نظرة سريعة على مؤشرات السوق ونشاط العمليات ليوم ${todayArabic()}. لديك حالياً ${formatNumber(overview.data?.vendors?.pending ?? welcome.data?.pendingKyc)} طلبات KYC معلقة للمراجعة، و ${formatNumber(activeAlerts.data?.total ?? welcome.data?.activeAlerts)} تنبيهات نشطة بالنظام.`}
+        primaryAction={{
+          label: "مراجعة طلبات KYC",
+          href: "/verifications",
+          icon: ShieldCheck,
+        }}
+        secondaryAction={{
+          label: "سجل العمليات",
+          href: "/audit-logs",
+          icon: ClipboardCheck,
+        }}
       />
 
-      
+      <Tabs defaultValue="overview" className="space-y-6">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <TabsList className="flex w-full overflow-x-auto whitespace-nowrap scrollbar-thin bg-transparent p-0 h-auto justify-start gap-2 border-b-0">
+            <TabsTrigger
+              value="overview"
+              className="px-4 py-2 text-sm font-semibold rounded-t-xl bg-card border-t border-x border-transparent data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-primary transition"
+            >
+              <Home className="size-4 me-1.5" />
+              النشاط العام
+            </TabsTrigger>
+            <TabsTrigger
+              value="financials"
+              className="px-4 py-2 text-sm font-semibold rounded-t-xl bg-card border-t border-x border-transparent data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-primary transition"
+            >
+              <Banknote className="size-4 me-1.5" />
+              المالية والعمولات
+            </TabsTrigger>
+            <TabsTrigger
+              value="sellers"
+              className="px-4 py-2 text-sm font-semibold rounded-t-xl bg-card border-t border-x border-transparent data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-primary transition"
+            >
+              <Store className="size-4 me-1.5" />
+              أداء البائعين
+            </TabsTrigger>
+            <TabsTrigger
+              value="system"
+              className="px-4 py-2 text-sm font-semibold rounded-t-xl bg-card border-t border-x border-transparent data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-primary transition"
+            >
+              <Activity className="size-4 me-1.5" />
+              صحة النظام
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map((card) => (
-          <KpiCard
-            key={card.label}
-            icon={card.icon}
-            tone={card.tone}
-            value={card.value}
-            label={card.label}
-            trend={card.trend ?? null}
-            footer={card.footer}
-          />
-        ))}
-      </section>
+        <TabsContent value="overview" className="space-y-6 outline-none">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiCard
+              icon={kpiRevenue.icon}
+              tone={kpiRevenue.tone}
+              value={kpiRevenue.value}
+              label={kpiRevenue.label}
+              trend={kpiRevenue.trend ?? null}
+              footer={kpiRevenue.footer}
+            />
+            <KpiCard
+              icon={kpiCommission.icon}
+              tone={kpiCommission.tone}
+              value={kpiCommission.value}
+              label={kpiCommission.label}
+              trend={kpiCommission.trend ?? null}
+              footer={kpiCommission.footer}
+            />
+            <KpiCard
+              icon={kpiVendors.icon}
+              tone={kpiVendors.tone}
+              value={kpiVendors.value}
+              label={kpiVendors.label}
+              trend={kpiVendors.trend ?? null}
+              footer={kpiVendors.footer}
+            />
+            <KpiCard
+              icon={kpiOrders.icon}
+              tone={kpiOrders.tone}
+              value={kpiOrders.value}
+              label={kpiOrders.label}
+              trend={kpiOrders.trend ?? null}
+              footer={kpiOrders.footer}
+            />
+          </div>
 
-      <section className="grid gap-5 xl:grid-cols-2">
-        <SectionCard
-          title="دورة الفوترة الحالية"
-          description={welcome.data?.currency ?? currency}
-        >
-          <BillingCycleCard />
-        </SectionCard>
-        <CommissionRatesCard />
-      </section>
+          <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
+            <KycApprovalQueue
+              rows={kycQueue.data ?? []}
+              isLoading={kycQueue.isLoading}
+              isError={kycQueue.isError}
+              errorMessage={kycQueue.error?.message}
+            />
+            <ActivityFeed
+              items={activityFeed.data ?? []}
+              isLoading={activityFeed.isLoading}
+              isError={activityFeed.isError}
+              errorMessage={activityFeed.error?.message}
+              live={live}
+              onLiveToggle={setLive}
+            />
+          </div>
 
-      <section className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
-        <KycApprovalQueue
-          rows={kycQueue.data ?? []}
-          isLoading={kycQueue.isLoading}
-          isError={kycQueue.isError}
-          errorMessage={kycQueue.error?.message}
-        />
-        <ActivityFeed
-          items={activityFeed.data ?? []}
-          isLoading={activityFeed.isLoading}
-          isError={activityFeed.isError}
-          errorMessage={activityFeed.error?.message}
-          live={live}
-          onLiveToggle={setLive}
-        />
-      </section>
+          <RecentVendorsTable />
+        </TabsContent>
 
-      <section className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <TopVendorsCard />
-        <VendorGeoCard />
-      </section>
+        <TabsContent value="financials" className="space-y-6 outline-none">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiCard
+              icon={kpiRevenue.icon}
+              tone={kpiRevenue.tone}
+              value={kpiRevenue.value}
+              label={kpiRevenue.label}
+              trend={kpiRevenue.trend ?? null}
+              footer={kpiRevenue.footer}
+            />
+            <KpiCard
+              icon={kpiCommission.icon}
+              tone={kpiCommission.tone}
+              value={kpiCommission.value}
+              label={kpiCommission.label}
+              trend={kpiCommission.trend ?? null}
+              footer={kpiCommission.footer}
+            />
+            <KpiCard
+              icon={kpiPayouts.icon}
+              tone={kpiPayouts.tone}
+              value={kpiPayouts.value}
+              label={kpiPayouts.label}
+              trend={kpiPayouts.trend ?? null}
+              footer={kpiPayouts.footer}
+            />
+            <KpiCard
+              icon={kpiUsers.icon}
+              tone={kpiUsers.tone}
+              value={kpiUsers.value}
+              label={kpiUsers.label}
+              trend={kpiUsers.trend ?? null}
+              footer={kpiUsers.footer}
+            />
+          </div>
 
-      <RecentVendorsTable />
+          <div className="grid gap-5 xl:grid-cols-2">
+            <SectionCard
+              title="دورة الفوترة الحالية"
+              description={welcome.data?.currency ?? currency}
+            >
+              <BillingCycleCard />
+            </SectionCard>
+            <CommissionRatesCard />
+          </div>
 
-      <section className="grid gap-5 xl:grid-cols-2">
-        <SystemAlertsCard
-          alerts={systemAlerts.data?.data ?? ([] as SystemAlert[])}
-          isLoading={systemAlerts.isLoading}
-          isError={systemAlerts.isError}
-          errorMessage={systemAlerts.error?.message}
-        />
-        <SystemHealthCard
-          data={systemHealth.data}
-          isLoading={systemHealth.isLoading}
-          isError={systemHealth.isError}
-          errorMessage={systemHealth.error?.message}
-        />
-      </section>
+          <PendingPayoutsCard />
+        </TabsContent>
 
-      <section className="grid gap-5 xl:grid-cols-2">
-        <PendingPayoutsCard />
-        <SectionCard
-          title="صحة الطوابير"
-          description="حالة المعالجة الفورية"
-        >
-          {queues.isLoading ? (
-            <LoadingState label="جار التحميل" />
-          ) : queues.isError ? (
-            <ErrorState message={queues.error.message} />
-          ) : queueSummary.length === 0 ? (
-            <p className="text-sm text-ink-muted">لا توجد بيانات طوابير.</p>
-          ) : (
-            <div className="space-y-2.5">
-              {queueSummary.map((queue, index) => (
-                <div
-                  key={String(queue.name ?? index)}
-                  className="flex items-center justify-between rounded-xl border border-border p-3"
-                >
-                  <div>
-                    <div className="text-sm font-bold text-ink-strong">
-                      {String(queue.name ?? `طابور ${index + 1}`)}
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-ink-muted">
-                      انتظار: {String(queue.waiting ?? 0)} • فشل: {String(queue.failed ?? 0)}
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-brand-teal-50 text-primary hover:bg-primary hover:text-primary-foreground"
+        <TabsContent value="sellers" className="space-y-6 outline-none">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <KpiCard
+              icon={kpiVendors.icon}
+              tone={kpiVendors.tone}
+              value={kpiVendors.value}
+              label={kpiVendors.label}
+              trend={kpiVendors.trend ?? null}
+              footer={kpiVendors.footer}
+            />
+            <KpiCard
+              icon={kpiKyc.icon}
+              tone={kpiKyc.tone}
+              value={kpiKyc.value}
+              label={kpiKyc.label}
+              trend={kpiKyc.trend ?? null}
+              footer={kpiKyc.footer}
+            />
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+            <TopVendorsCard />
+            <VendorGeoCard />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-6 outline-none">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <KpiCard
+              icon={kpiAlerts.icon}
+              tone={kpiAlerts.tone}
+              value={kpiAlerts.value}
+              label={kpiAlerts.label}
+              trend={kpiAlerts.trend ?? null}
+              footer={kpiAlerts.footer}
+            />
+            <KpiCard
+              icon={Activity}
+              tone={systemHealth.data?.overall === "OK" ? "teal" : "rose"}
+              value={systemHealth.data?.overall === "OK" ? "ممتاز" : "يحتاج فحص"}
+              label="الحالة العامة للخدمات"
+              footer={<span>فحص تلقائي مستمر للخدمات</span>}
+            />
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-2">
+            <SystemAlertsCard
+              alerts={systemAlerts.data?.data ?? ([] as SystemAlert[])}
+              isLoading={systemAlerts.isLoading}
+              isError={systemAlerts.isError}
+              errorMessage={systemAlerts.error?.message}
+            />
+            <SystemHealthCard
+              data={systemHealth.data}
+              isLoading={systemHealth.isLoading}
+              isError={systemHealth.isError}
+              errorMessage={systemHealth.error?.message}
+            />
+          </div>
+
+          <SectionCard
+            title="صحة الطوابير"
+            description="حالة المعالجة الفورية"
+          >
+            {queues.isLoading ? (
+              <LoadingState label="جار التحميل" />
+            ) : queues.isError ? (
+              <ErrorState message={queues.error.message} />
+            ) : queueSummary.length === 0 ? (
+              <p className="text-sm text-ink-muted">لا توجد بيانات طوابير.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {queueSummary.map((queue, index) => (
+                  <div
+                    key={String(queue.name ?? index)}
+                    className="flex items-center justify-between rounded-xl border border-border p-3"
                   >
-                    <Download className="size-3" />
-                    تنزيل
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
-      </section>
+                    <div>
+                      <div className="text-sm font-bold text-ink-strong">
+                        {String(queue.name ?? `طابور ${index + 1}`)}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-ink-muted">
+                        انتظار: {String(queue.waiting ?? 0)} • فشل: {String(queue.failed ?? 0)}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="bg-brand-teal-50 text-primary hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <Download className="size-3" />
+                      تنزيل
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

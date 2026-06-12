@@ -39,12 +39,12 @@ export function CommissionRatesCard() {
 
   const [retailPct, setRetailPct] = useState<string>("");
   const [bulkPct, setBulkPct] = useState<string>("");
-  const [synced, setSynced] = useState(false);
+  const [prevSettings, setPrevSettings] = useState<Setting[] | undefined>(undefined);
 
-  if (settings.data && !synced) {
+  if (settings.data && settings.data !== prevSettings) {
     setRetailPct(String(bpsToPercent(retailSetting?.value)));
     setBulkPct(String(bpsToPercent(bulkSetting?.value)));
-    setSynced(true);
+    setPrevSettings(settings.data);
   }
 
   const mutation = useMutation({
@@ -52,7 +52,6 @@ export function CommissionRatesCard() {
       adminApi(adminPaths.adminSettings(), { method: "PATCH", body }),
     onSuccess: async () => {
       toast.success("تم تحديث نسب العمولة بنجاح");
-      setSynced(false);
       await queryClient.invalidateQueries({ queryKey: queryKeys.commissions });
     },
     onError: (error) => {
