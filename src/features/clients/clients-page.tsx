@@ -42,7 +42,7 @@ export default function ClientsPage() {
   const total = customers.data?.total;
   const description =
     typeof total === "number"
-      ? `عرض حسابات العملاء المسجلين بالمنصة. إجمالي العملاء: ${new Intl.NumberFormat("ar-EG").format(total)}.`
+      ? `عرض حسابات العملاء المسجلين بالمنصة. إجمالي العملاء: ${new Intl.NumberFormat("ar-EG-u-nu-latn").format(total)}.`
       : "عرض حسابات العملاء المسجلين بالمنصة (للاطلاع فقط).";
 
   return (

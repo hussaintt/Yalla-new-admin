@@ -83,6 +83,13 @@
   --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
   --sidebar-pill-bg: rgba(255, 255, 255, 0.1);
   --sidebar-indicator: #f97316;
+
+  --banner-glow-warm: rgba(249, 115, 22, 0.4);
+  --banner-glow-cool: rgba(255, 255, 255, 0.1);
+
+  --kpi-value-size: 1.625rem;
+  --kpi-value-size-lg: 2rem;
+  --kpi-value-weight: 800;
 }
 
 

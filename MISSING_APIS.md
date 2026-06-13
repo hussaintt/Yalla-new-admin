@@ -139,3 +139,45 @@ The following is a list of backend endpoints that need to be implemented in `Yal
 * **Method:** POST
 * **Reason Needed:** Force trigger cron actions manually.
 * **Priority:** P2
+
+---
+
+## 9. Dashboard Trend & Derived Metrics
+
+The following endpoints are needed to power the redesigned Super Admin
+dashboard. All of them are non-blocking — each widget has its own
+`isLoading` / `isError` boundary and degrades to `—` when the endpoint
+is missing.
+
+### GET /v1/admin/analytics/revenue-trends
+* **Method:** GET
+* **Query Params:** `interval=daily|weekly`, `from`, `to`
+* **Response Body:** `{ data: Array<{ date: string, grossCents: number, payoutCents: number, commissionCents: number }> }`
+* **Reason Needed:** Render a 30-day revenue area chart on the dashboard headline row. Currently the backend already returns a similar shape at `analyticsRevenueTrends` — confirm the contract and surface it.
+* **Priority:** P1
+
+### GET /v1/admin/analytics/catalog-size
+* **Method:** GET
+* **Response Body:** `{ products: number, brands: number, categories: number, storeCategories: number, attributes: number }`
+* **Reason Needed:** Show catalog health next to vendor health. Cached for 5 min.
+* **Priority:** P2
+
+### GET /v1/admin/analytics/refund-rate
+* **Method:** GET
+* **Query Params:** `days`
+* **Response Body:** `{ refundRatePct: number, refundedCount: number, paidCount: number, currency: string }`
+* **Reason Needed:** Surface refund rate on the Financials section. Currently absent from the admin overview.
+* **Priority:** P1
+
+### GET /v1/admin/payouts/oldest-pending
+* **Method:** GET
+* **Response Body:** `{ id: string, vendorId: string, vendorName: string, amountCents: number, currency: string, requestedAt: string, ageHours: number }`
+* **Reason Needed:** Compute payouts SLA on the dashboard. Falls back to the existing `/admin/payouts?status=PENDING&limit=1&sort=requestedAt:asc` if not implemented.
+* **Priority:** P2
+
+### GET /v1/admin/analytics/vendor-rankings-delta
+* **Method:** GET
+* **Query Params:** `days`, `limit`
+* **Response Body:** `{ data: Array<{ vendorId: string, vendorName: string, totalCents: number, deltaPct: number }> }`
+* **Reason Needed:** Replace the hardcoded vendor delta percentages currently displayed in the Vendors table.
+* **Priority:** P2

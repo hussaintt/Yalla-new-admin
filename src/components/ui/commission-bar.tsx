@@ -20,7 +20,7 @@ const palette: Array<{ className: string }> = [
 ];
 
 function formatAmount(amountCents: number, currency: string) {
-  return new Intl.NumberFormat("ar-EG", {
+  return new Intl.NumberFormat("ar-EG-u-nu-latn", {
     style: "currency",
     currency,
     maximumFractionDigits: 0,

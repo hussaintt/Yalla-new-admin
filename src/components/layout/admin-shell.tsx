@@ -163,7 +163,7 @@ function SidebarContent({
                                   : "bg-white/10 text-[#94d9d2]",
                               )}
                             >
-                              {new Intl.NumberFormat("ar-EG").format(
+                              {new Intl.NumberFormat("ar-EG-u-nu-latn").format(
                                 counts[item.countKey] ?? 0,
                               )}
                             </span>
@@ -349,7 +349,7 @@ function initials(name: string) {
 }
 
 function arabicToday() {
-  return new Intl.DateTimeFormat("ar-EG", {
+  return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -357,7 +357,7 @@ function arabicToday() {
 }
 
 function arabicNow() {
-  return new Intl.DateTimeFormat("ar-EG", {
+  return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,

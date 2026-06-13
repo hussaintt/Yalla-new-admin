@@ -26,17 +26,25 @@ export function WelcomeBanner({
     >
       <div
         aria-hidden
-        className="absolute -top-10 -left-10 size-50 rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.4),transparent_70%)]"
+        className="absolute -top-10 -left-10 size-50 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, var(--banner-glow-warm), transparent 70%)",
+        }}
       />
       <div
         aria-hidden
-        className="absolute -bottom-15 right-[30%] size-60 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.1),transparent_70%)]"
+        className="absolute -bottom-15 right-[30%] size-60 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, var(--banner-glow-cool), transparent 70%)",
+        }}
       />
       <div className="relative z-[2] flex flex-col items-start gap-6 md:flex-row md:items-center">
-        <div className="grid size-16 place-items-center rounded-[18px] border border-white/25 bg-white/15 backdrop-blur-md">
+        <div className="grid size-16 shrink-0 place-items-center rounded-[18px] border border-white/25 bg-white/15 backdrop-blur-md">
           <Sparkles className="size-8" />
         </div>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h2 className="text-[22px] font-extrabold">{title}</h2>
           {description ? (
             <p className="mt-1.5 max-w-2xl text-[13px] leading-7 text-[#ccebe6]">
@@ -44,7 +52,7 @@ export function WelcomeBanner({
             </p>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex w-full flex-wrap gap-2.5 md:w-auto">
           {primaryAction ? (
             <Button
               asChild

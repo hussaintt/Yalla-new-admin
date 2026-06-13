@@ -10,7 +10,9 @@ import {
   ActivityTimeline,
   type ActivityTone,
 } from "@/components/ui/activity-item";
+import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
+import { Radio } from "lucide-react";
 import { adminApi } from "@/lib/api/admin-client";
 import { adminPaths } from "@/lib/api/paths";
 import { queryKeys } from "@/lib/api/query-keys";
@@ -29,7 +31,7 @@ function formatRelative(iso: string) {
     if (hours < 24) return `منذ ${hours} ساعة`;
     const days = Math.round(hours / 24);
     if (days < 7) return `منذ ${days} يوم`;
-    return new Intl.DateTimeFormat("ar-EG", {
+    return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
       day: "numeric",
       month: "short",
       hour: "numeric",
@@ -79,6 +81,25 @@ export function ActivityFeed({
     <SectionCard
       title="سجل النشاط المباشر"
       description="آخر أحداث المنصة"
+      actions={
+        onLiveToggle ? (
+          <Button
+            type="button"
+            variant={live ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => onLiveToggle(!live)}
+            aria-pressed={live ?? false}
+            aria-label={
+              live
+                ? "إيقاف التحديث التلقائي"
+                : "تشغيل التحديث التلقائي"
+            }
+          >
+            <Radio className="size-3.5" />
+            {live ? "مباشر" : "متوقف"}
+          </Button>
+        ) : null
+      }
     >
       {isLoading ? (
         <LoadingState label="جار التحميل" />
@@ -107,10 +128,12 @@ export function ActivityFeed({
   );
 }
 
-export function useActivityFeed(limit = 6) {
+export function useActivityFeed(limit = 6, live = false) {
   return useQuery({
     queryKey: queryKeys.dashboard.activityFeed(limit),
     queryFn: () => adminApi<{ data: ActivityItemData[] }>(adminPaths.opsActivityFeed(limit)),
     select: (response) => response?.data ?? [],
+    refetchInterval: live ? 15_000 : false,
+    refetchIntervalInBackground: false,
   });
 }

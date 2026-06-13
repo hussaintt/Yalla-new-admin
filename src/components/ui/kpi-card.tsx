@@ -13,6 +13,8 @@ export type KpiTone =
   | "amber"
   | "rose";
 
+export type KpiSize = "md" | "lg";
+
 const toneClass: Record<KpiTone, string> = {
   teal: "bg-brand-teal-50 text-brand-teal-700",
   orange: "bg-brand-orange-50 text-brand-orange",
@@ -32,6 +34,8 @@ export function KpiCard({
   label,
   footer,
   className,
+  size = "md",
+  loading = false,
 }: {
   icon: React.ElementType;
   tone?: KpiTone;
@@ -40,24 +44,36 @@ export function KpiCard({
   label: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  size?: KpiSize;
+  loading?: boolean;
 }) {
+  const valueClass =
+    size === "lg" ? "text-[length:var(--kpi-value-size-lg)]" : "text-[length:var(--kpi-value-size)]";
+
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:shadow-md",
+        "group relative overflow-hidden rounded-2xl border border-border bg-card transition hover:-translate-y-0.5 hover:shadow-md",
+        size === "lg" ? "p-6" : "p-5",
         className,
       )}
     >
       <div className="mb-3.5 flex items-center justify-between">
         <div
           className={cn(
-            "grid h-11 w-11 place-items-center rounded-xl",
+            "grid place-items-center rounded-xl",
+            size === "lg" ? "h-12 w-12" : "h-11 w-11",
             toneClass[tone],
           )}
         >
-          <Icon className="size-5" />
+          <Icon className={size === "lg" ? "size-6" : "size-5"} />
         </div>
-        {trend ? (
+        {loading ? (
+          <span
+            aria-hidden
+            className="h-4 w-12 animate-pulse rounded-full bg-muted"
+          />
+        ) : trend ? (
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
@@ -75,9 +91,21 @@ export function KpiCard({
           </span>
         ) : null}
       </div>
-      <div className="text-[26px] font-extrabold leading-tight text-ink-strong">
-        {value}
-      </div>
+      {loading ? (
+        <div
+          aria-hidden
+          className="h-7 w-24 animate-pulse rounded-md bg-muted"
+        />
+      ) : (
+        <div
+          className={cn(
+            "font-extrabold leading-tight text-ink-strong",
+            valueClass,
+          )}
+        >
+          {value}
+        </div>
+      )}
       <div className="mt-1 text-xs text-ink-muted">{label}</div>
       {footer ? (
         <div className="mt-3 flex items-center gap-1.5 text-[11px] text-ink-muted">

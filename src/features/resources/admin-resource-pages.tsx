@@ -1064,7 +1064,7 @@ function CatalogStatCard({ icon, label, count, loading }: { icon: React.ReactNod
       <div>
         <p className="text-xs font-semibold text-ink-muted">{label}</p>
         <p className="text-xl font-extrabold text-ink-strong">
-          {loading ? "..." : count.toLocaleString("ar-EG")}
+          {loading ? "..." : count.toLocaleString("ar-EG-u-nu-latn")}
         </p>
       </div>
     </div>

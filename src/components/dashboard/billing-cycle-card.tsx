@@ -156,7 +156,7 @@ function formatPeriod(startsAt: string, endsAt: string) {
   try {
     const start = new Date(startsAt);
     const end = new Date(endsAt);
-    const fmt = new Intl.DateTimeFormat("ar-EG", {
+    const fmt = new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
       day: "numeric",
       month: "long",
     });

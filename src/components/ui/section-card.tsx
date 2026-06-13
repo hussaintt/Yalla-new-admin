@@ -9,6 +9,7 @@ export function SectionCard({
   className,
   contentClassName,
   children,
+  id,
 }: {
   title?: React.ReactNode;
   description?: React.ReactNode;
@@ -16,12 +17,14 @@ export function SectionCard({
   className?: string;
   contentClassName?: string;
   children?: React.ReactNode;
+  id?: string;
 }) {
   const hasHeader = Boolean(title || description || actions);
   return (
     <section
+      id={id}
       className={cn(
-        "rounded-2xl border border-border bg-card text-card-foreground shadow-sm",
+        "scroll-mt-32 rounded-2xl border border-border bg-card text-card-foreground shadow-sm",
         className,
       )}
     >

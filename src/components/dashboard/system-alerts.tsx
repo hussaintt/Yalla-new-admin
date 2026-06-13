@@ -41,7 +41,7 @@ export function SystemAlertsCard({
               severity={severityFromTone(alert.severity)}
               title={alert.title}
               description={alert.description}
-              time={alert.createdAt ? new Date(alert.createdAt).toLocaleString("ar-EG") : undefined}
+              time={alert.createdAt ? new Date(alert.createdAt).toLocaleString("ar-EG-u-nu-latn") : undefined}
             />
           ))}
         </div>

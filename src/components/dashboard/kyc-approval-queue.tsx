@@ -139,10 +139,12 @@ export function KycApprovalQueue({
   );
 }
 
-export function useKycQueue(limit = 4) {
+export function useKycQueue(limit = 4, live = false) {
   return useQuery({
     queryKey: queryKeys.dashboard.kycQueue(limit),
     queryFn: () => adminApi<{ data: KycQueueRow[] }>(adminPaths.verificationsQueue(limit)),
     select: (response) => response?.data ?? [],
+    refetchInterval: live ? 30_000 : false,
+    refetchIntervalInBackground: false,
   });
 }

@@ -2,7 +2,7 @@ export function formatDate(value: unknown) {
   if (!value) return "-";
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat("ar-EG", {
+  return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -14,7 +14,7 @@ export function formatRelative(value: unknown): string {
   if (Number.isNaN(date.getTime())) return String(value);
 
   const diffSeconds = Math.round((date.getTime() - Date.now()) / 1000);
-  const formatter = new Intl.RelativeTimeFormat("ar-EG", { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat("ar-EG-u-nu-latn", { numeric: "auto" });
   const abs = Math.abs(diffSeconds);
 
   if (abs < 60) return formatter.format(diffSeconds, "second");
@@ -33,7 +33,7 @@ export function formatMoney(cents: unknown, currency = "EGP") {
         ? Number(cents) / 100
         : 0;
 
-  return new Intl.NumberFormat("ar-EG", {
+  return new Intl.NumberFormat("ar-EG-u-nu-latn", {
     style: "currency",
     currency,
     maximumFractionDigits: 0,

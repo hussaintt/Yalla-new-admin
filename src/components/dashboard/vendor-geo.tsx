@@ -12,7 +12,7 @@ import { queryKeys } from "@/lib/api/query-keys";
 import type { VendorGeoBreakdown } from "@/lib/api/types";
 
 function formatCount(value: number) {
-  return new Intl.NumberFormat("ar-EG").format(value);
+  return new Intl.NumberFormat("ar-EG-u-nu-latn").format(value);
 }
 
 export function VendorGeoCard() {
