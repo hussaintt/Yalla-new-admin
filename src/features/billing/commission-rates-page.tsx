@@ -22,9 +22,8 @@ const commissionRateSchema = z.object({
     .number()
     .min(0, "العمولة يجب أن تكون 0 أو أكثر")
     .max(10000, "العمولة لا يمكن أن تتجاوز 100% (10000 bps)"),
-  vendorId: z.string().trim().optional().or(z.literal("")),
+  vendorId: z.string().trim().min(1, "حدد معرف البائع"),
   categoryId: z.string().trim().optional().or(z.literal("")),
-  description: z.string().trim().optional().or(z.literal("")),
   isActive: z.string().default("true"),
 });
 
@@ -38,7 +37,6 @@ type CommRateRecord = {
   vendorName?: string;
   categoryId?: string;
   categoryName?: string;
-  description?: string;
   isActive?: boolean;
 };
 
@@ -63,7 +61,6 @@ export function CommissionRatesPage() {
         rateBps: Number(values.rateBps),
         vendorId: values.vendorId || null,
         categoryId: values.categoryId || null,
-        description: values.description || null,
         isActive: values.isActive === "true",
       };
 
@@ -97,7 +94,7 @@ export function CommissionRatesPage() {
     <div className="space-y-6">
       <PageHeader
         title="نسب عمولات المنصة"
-        description="تحديد نسب العمولات الافتراضية والنسب المخصصة لبائعين أو تصنيفات محددة."
+        description="قواعد العمولة المخصصة لبائعين (أو لتصنيف داخل بائع). النسبة العامة الافتراضية للمنصة تُضبط من بطاقة العمولة في لوحة التحكم."
       />
 
       <div className="flex flex-wrap gap-2">
@@ -167,11 +164,6 @@ export function CommissionRatesPage() {
                 ),
               },
               {
-                id: "description",
-                header: "الوصف والسبب",
-                cell: (row) => row.description || "—",
-              },
-              {
                 id: "status",
                 header: "الحالة",
                 cell: (row) => (
@@ -206,10 +198,9 @@ export function CommissionRatesPage() {
         schema={commissionRateSchema}
         pending={upsertRate.isPending}
         defaultValues={{
-          rateBps: selectedRule?.rateBps ?? 1000,
+          rateBps: selectedRule?.rateBps ?? 105,
           vendorId: selectedRule?.vendorId ?? "",
           categoryId: selectedRule?.categoryId ?? "",
-          description: selectedRule?.description ?? "",
           isActive: selectedRule?.isActive === false ? "false" : "true",
         }}
         fields={[
@@ -221,19 +212,14 @@ export function CommissionRatesPage() {
           },
           {
             name: "vendorId",
-            label: "معرف البائع (اختياري - اترك فارغاً لتعميم النسبة)",
+            label: "معرف البائع (مطلوب)",
             placeholder: "مثال: vend_12345",
+            required: true,
           },
           {
             name: "categoryId",
-            label: "معرف التصنيف (اختياري - اترك فارغاً لتعميم النسبة)",
+            label: "معرف التصنيف (اختياري - اترك فارغاً لتطبيق النسبة على كل تصنيفات البائع)",
             placeholder: "مثال: cat_12345",
-          },
-          {
-            name: "description",
-            label: "الوصف أو الغرض من القاعدة",
-            kind: "textarea",
-            colSpan: 2,
           },
           {
             name: "isActive",
