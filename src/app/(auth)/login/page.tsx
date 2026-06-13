@@ -2,9 +2,10 @@
 
 import { Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { LoadingState } from "@/components/state/async-states";
@@ -35,10 +36,15 @@ function safeNextPath(next: string | null) {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const nextPath = useMemo(
     () => safeNextPath(searchParams.get("next")),
     [searchParams],
   );
+
+  useEffect(() => {
+    queryClient.clear();
+  }, [queryClient]);
 
   const {
     register,
@@ -65,6 +71,7 @@ function LoginForm() {
       }
 
       toast.success("تم تسجيل الدخول");
+      queryClient.clear();
       router.replace(nextPath);
     } catch (error) {
       const message =

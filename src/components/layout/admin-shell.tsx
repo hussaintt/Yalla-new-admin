@@ -24,6 +24,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCurrentAdmin } from "@/features/auth/use-current-admin";
@@ -191,6 +192,7 @@ function SidebarContent({
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: admin, error, isLoading } = useCurrentAdmin();
   const { data: countsData, isLoading: countsLoading } = useSidebarCounts();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -215,6 +217,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     toast.success("تم تسجيل الخروج");
+    queryClient.clear();
     router.replace("/login");
   }
 
