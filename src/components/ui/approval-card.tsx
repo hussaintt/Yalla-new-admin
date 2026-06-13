@@ -25,7 +25,7 @@ export function ApprovalCard({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-xl border border-border p-3.5 transition hover:border-primary hover:shadow-sm",
+        "flex w-full items-center gap-3 rounded-xl border border-border p-3.5 transition hover:border-primary hover:shadow-sm",
         className,
       )}
     >

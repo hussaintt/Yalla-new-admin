@@ -13,6 +13,7 @@ import { adminApi } from "@/lib/api/admin-client";
 import { adminPaths } from "@/lib/api/paths";
 import { queryKeys } from "@/lib/api/query-keys";
 import type { KycQueueRow } from "@/lib/api/types";
+import { formatRelative, localizedText } from "@/lib/formatters";
 
 type PendingAction =
   | { kind: "approve"; row: KycQueueRow }
@@ -118,7 +119,7 @@ export function KycApprovalQueue({
         confirmLabel="تأكيد الموافقة"
         variant="success"
         onCancel={() => setPending(null)}
-        onConfirm={() => pending && review.mutate({ id: pending.row.id, status: "APPROVED" })}
+        onConfirm={() => pending && review.mutate({ id: pending.row.publicId || pending.row.id, status: "APPROVED" })}
       />
 
       <ActionDialog
@@ -132,18 +133,62 @@ export function KycApprovalQueue({
         reasonPlaceholder="مثال: وثائق غير واضحة / نشاط لا يتوافق مع سياسات المنصة"
         onCancel={() => setPending(null)}
         onConfirm={(reason) =>
-          pending && review.mutate({ id: pending.row.id, status: "REJECTED", reason })
+          pending && review.mutate({ id: pending.row.publicId || pending.row.id, status: "REJECTED", reason })
         }
       />
     </SectionCard>
   );
 }
 
+interface ApiVerificationItem {
+  id: number;
+  publicId: string;
+  type: "vendor" | "user";
+  documentType: string;
+  createdAt: string;
+  status: string;
+  vendor?: {
+    displayName: unknown;
+    slug: string;
+  } | null;
+  user?: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
+}
+
 export function useKycQueue(limit = 4, live = false) {
   return useQuery({
     queryKey: queryKeys.dashboard.kycQueue(limit),
-    queryFn: () => adminApi<{ data: KycQueueRow[] }>(adminPaths.verificationsQueue(limit)),
-    select: (response) => response?.data ?? [],
+    queryFn: () => adminApi<{ data: ApiVerificationItem[] }>(adminPaths.verificationsQueue(limit)),
+    select: (response) => {
+      const items = response?.data ?? [];
+      return items.map((item: ApiVerificationItem): KycQueueRow => {
+        const isVendor = item.type === "vendor";
+        const displayName = isVendor && item.vendor
+          ? localizedText(item.vendor.displayName, item.vendor.slug, "ar")
+          : item.user
+            ? `${item.user.firstName ?? ""} ${item.user.lastName ?? ""}`.trim() || item.user.email
+            : "مستخدم غير معروف";
+
+        return {
+          id: item.id,
+          publicId: item.publicId,
+          vendorName: displayName,
+          ownerName: isVendor && item.user
+            ? `${item.user.firstName ?? ""} ${item.user.lastName ?? ""}`.trim() || item.user.email
+            : isVendor
+              ? undefined
+              : "حساب مستخدم",
+          category: item.documentType || "وثيقة تحقق",
+          submittedAt: item.createdAt,
+          submittedAtRelative: formatRelative(item.createdAt),
+          status: item.status,
+          href: "/verifications",
+        };
+      });
+    },
     refetchInterval: live ? 30_000 : false,
     refetchIntervalInBackground: false,
   });
