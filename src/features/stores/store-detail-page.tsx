@@ -48,6 +48,13 @@ const vendorEditSchema = z.object({
   email: z.string().trim().email("بريد إلكتروني غير صالح").optional().or(z.literal("")),
   phone: z.string().trim().optional().or(z.literal("")),
   storeType: z.string().trim().optional().or(z.literal("")),
+  commissionDefaultBps: z.union([
+    z.string().trim().refine((val) => val === "" || (!isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 10000), {
+      message: "العمولة يجب أن تكون رقم بين 0 و 10000",
+    }).transform((val) => (val === "" ? null : Number(val))),
+    z.number().min(0).max(10000),
+    z.null(),
+  ]).optional().nullable(),
 });
 
 type VendorEditValues = z.infer<typeof vendorEditSchema>;
@@ -152,6 +159,7 @@ export function StoreDetailPage({ vendorId }: { vendorId: string }) {
         description: values.description,
         storeType: values.storeType || undefined,
         phone: values.phone || undefined,
+        commissionDefaultBps: values.commissionDefaultBps !== undefined ? values.commissionDefaultBps : undefined,
       };
       // Only send email when present to avoid clearing it with an empty value.
       if (values.email) body.email = values.email;
@@ -267,6 +275,14 @@ export function StoreDetailPage({ vendorId }: { vendorId: string }) {
               <div>
                 <dt className="text-xs font-bold text-ink-muted">معرف المسار (Slug)</dt>
                 <dd className="mt-1 text-sm font-semibold text-ink-strong">{vendor.data?.slug ?? "-"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold text-ink-muted">عمولة المتجر</dt>
+                <dd className="mt-1 text-sm font-semibold text-ink-strong">
+                  {vendor.data?.commissionDefaultBps !== undefined && vendor.data?.commissionDefaultBps !== null
+                    ? `${(vendor.data.commissionDefaultBps / 100).toFixed(2)}% (${vendor.data.commissionDefaultBps} bps)`
+                    : "الافتراضية للمنصة"}
+                </dd>
               </div>
               <div className="sm:col-span-3">
                 <dt className="text-xs font-bold text-ink-muted">الوصف</dt>
@@ -533,7 +549,7 @@ export function StoreDetailPage({ vendorId }: { vendorId: string }) {
         open={editOpen}
         onOpenChange={setEditOpen}
         title="تعديل بيانات البائع"
-        description="حدّث الاسم المعروض والوصف وبيانات التواصل. لا يؤثر هذا على إعدادات العمولة."
+        description="حدّث الاسم المعروض والوصف وبيانات التواصل وعمولة المتجر."
         schema={vendorEditSchema}
         pending={updateVendor.isPending}
         defaultValues={{
@@ -548,6 +564,7 @@ export function StoreDetailPage({ vendorId }: { vendorId: string }) {
           email: vendor.data?.email ?? "",
           phone: vendor.data?.phone ?? "",
           storeType: vendor.data?.storeType ?? "",
+          commissionDefaultBps: vendor.data?.commissionDefaultBps ?? null,
         }}
         fields={[
           { name: "displayName.ar", label: "الاسم المعروض (عربي)", required: true },
@@ -557,6 +574,13 @@ export function StoreDetailPage({ vendorId }: { vendorId: string }) {
           { name: "email", label: "البريد الإلكتروني", kind: "email", dir: "ltr" },
           { name: "phone", label: "رقم الهاتف", kind: "tel", dir: "ltr" },
           { name: "storeType", label: "نوع المتجر", colSpan: 2 },
+          {
+            name: "commissionDefaultBps",
+            label: "عمولة المتجر بالنقاط (1% = 100 bps، اترك فارغاً للمنصة الافتراضية)",
+            kind: "number",
+            placeholder: "مثال: 1000 (تعادل 10%)",
+            colSpan: 2,
+          },
         ]}
         onSubmit={(values) => updateVendor.mutate(values)}
       />

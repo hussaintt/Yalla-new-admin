@@ -55,11 +55,11 @@ export const adminPaths = {
   vendorDetail: (vendorId: string) =>
     `/api/admin/admin/vendors/${encodeURIComponent(vendorId)}`,
   vendorStatus: (vendorId: string) =>
-    `/api/admin/admin/vendors/${encodeURIComponent(vendorId)}/status`,
+    `/api/admin/vendors/${encodeURIComponent(vendorId)}/status`,
   vendorVerifications: (vendorId: string) =>
     `/api/admin/admin/vendors/${encodeURIComponent(vendorId)}/verifications`,
   vendorVerification: (vendorId: string, verificationId: string | number) =>
-    `/api/admin/admin/vendors/${encodeURIComponent(vendorId)}/verifications/${encodeURIComponent(String(verificationId))}`,
+    `/api/admin/vendors/${encodeURIComponent(vendorId)}/verifications/${encodeURIComponent(String(verificationId))}`,
   vendorSuspend: (vendorId: string) =>
     `/api/admin/admin/vendors/${encodeURIComponent(vendorId)}/suspend`,
   vendorReinstate: (vendorId: string) =>
@@ -88,6 +88,7 @@ export const adminPaths = {
     withQuery("/api/admin/admin/reports/export", params),
   notificationsBroadcast: () => "/api/admin/admin/notifications/broadcast",
   commissionsRates: () => "/api/admin/admin/commissions/rates",
+  commissionsRatesBulk: () => "/api/admin/admin/commissions/rates/bulk",
   analyticsRevenueTrends: (
     interval: "daily" | "weekly" = "daily",
     from?: string,

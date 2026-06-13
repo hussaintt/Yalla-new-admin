@@ -101,8 +101,8 @@ export function CommissionRatesCard() {
 
   return (
     <SectionCard
-      title="نسب العمولة الافتراضية"
-      description="تُطبق على جميع البائعين الذين ليس لديهم نسبة مخصصة"
+      title="نسب العمولة"
+      description="قيمتان فقط تُطبَّقان على جميع البائعين وكل الطلبات في التطبيق"
     >
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">

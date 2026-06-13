@@ -49,6 +49,7 @@ export type VendorDetail = AdminVendorRow & {
   ratingAverage?: unknown;
   defaultCurrency?: string;
   productCount?: number;
+  commissionDefaultBps?: number | null;
 };
 
 export type ReviewRow = {
