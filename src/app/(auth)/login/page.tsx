@@ -12,6 +12,7 @@ import { LoadingState } from "@/components/state/async-states";
 import { Button } from "@/components/ui/button";
 import { FormField, FormInput } from "@/components/ui/form-field";
 import { ApiError, normalizeApiError } from "@/lib/api/errors";
+import { useCurrentAdmin } from "@/features/auth/use-current-admin";
 import { loginSchema, type LoginFormValues } from "./schema";
 
 async function parseResponse(response: Response) {
@@ -45,6 +46,18 @@ function LoginForm() {
   useEffect(() => {
     queryClient.clear();
   }, [queryClient]);
+
+  // Perform client-side session check on mount.
+  // If valid, auto-redirect to dashboard. If invalid, BFF clears cookies automatically.
+  const { data: admin, isSuccess } = useCurrentAdmin({
+    retry: false, // Don't retry on login page if unauthorized
+  });
+
+  useEffect(() => {
+    if (isSuccess && admin) {
+      router.replace(nextPath);
+    }
+  }, [isSuccess, admin, router, nextPath]);
 
   const {
     register,

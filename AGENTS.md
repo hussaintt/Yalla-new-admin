@@ -225,9 +225,9 @@ read or write these cookies by name anywhere except in the auth library.
 - Errors are normalized via `normalizeApiError` (`src/lib/api/errors.ts`)
   into `{ statusCode, code, message, details? }`. Surface `code` for
   branching in the UI when stable.
-- If the backend is missing an endpoint, document it in `MISSING_APIS.md`
-  with parameters, body shape, priority, and rationale before building a
-  client-side workaround.
+- If the backend is missing an endpoint, raise it with the backend team (and
+  note it in your PR) with parameters, body shape, priority, and rationale
+  before building a client-side workaround.
 
 ## 11. Quality Gates (must pass before commit)
 
@@ -277,13 +277,15 @@ so don't fight it — leave the regular dev server on `3005`.
 
 ## 14. Related Docs in the Repo
 
-- `ADMIN_PANEL_IMPLEMENTATION_PLAN.md` — the production-readiness plan
-  (type fixes, middleware protection, ops UX, missing screens, verification).
-- `MISSING_APIS.md` — list of backend endpoints still needed.
-- `admin-implementation-plan.md` — earlier planning notes (kept for
-  history; defer to `ADMIN_PANEL_IMPLEMENTATION_PLAN.md` for current work).
-- `NOON_DATA_ANALYSIS.md`, `NOON_IMPORT_REPORT.md` — one-off data import
-  work; read before touching the catalog import flow.
+- `README.md` and `QUICK_REFERENCE.md` — setup and developer quick reference.
+- **Commission** is controlled at `/billing/commission-rates`: a two-value editor
+  (`components/dashboard/commission-rates-card.tsx`) for the platform retail/bulk rates, plus an
+  engine toggle (`components/dashboard/commission-engine-card.tsx`) that writes the
+  `commission.engine` setting. The per-vendor rules table
+  (`features/billing/commission-rates-page.tsx`) is shown only in legacy mode.
+- Historical planning/audit/import docs (`ADMIN_PANEL_IMPLEMENTATION_PLAN`, `MISSING_APIS`,
+  `NOON_*`, etc.) were moved out of the repo to the `backforyallanew-md-files` archive (sibling of
+  the `YallaNew` folder) — kept for reference, intentionally not in this tree.
 
 ## 15. Working Agreement
 

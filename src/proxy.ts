@@ -20,14 +20,11 @@ function redirectWithNoStore(url: URL) {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasAccessToken = Boolean(request.cookies.get(accessCookieName)?.value);
-  const hasRefreshToken = Boolean(request.cookies.get(refreshCookieName)?.value);
+  const hasAccessToken = request.cookies.has(accessCookieName);
+  const hasRefreshToken = request.cookies.has(refreshCookieName);
   const hasSession = hasAccessToken || hasRefreshToken;
 
-  if (publicPaths.includes(pathname) && hasSession) {
-    return redirectWithNoStore(new URL("/dashboard", request.url));
-  }
-
+  // If the user is trying to access a protected route and has no session, redirect to /login
   if (!publicPaths.includes(pathname) && !hasSession) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
