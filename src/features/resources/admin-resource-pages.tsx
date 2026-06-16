@@ -12,7 +12,7 @@ import { bannerSchema, type BannerFormValues } from "@/features/banners/schema";
 
 import { ClickableImageWithFileFallback } from "@/components/clickable-image-fallback";
 import { CursorDataTable } from "@/components/data-table/cursor-data-table";
-import { EntityEditorDrawer, type EditorField } from "@/components/forms/entity-editor-drawer";
+import { EntityEditorDrawer, type EditorField, type EditorFieldOption } from "@/components/forms/entity-editor-drawer";
 import { ImageUploadInput } from "@/components/image-upload-input";
 import { PageHeader } from "@/components/layout/page-header";
 import { ActionDialog } from "@/components/modals/action-dialog";
@@ -859,9 +859,25 @@ export function ProductsPage() {
   );
 }
 
+const productEditSchema = z.object({
+  titleAr: z.string().min(1, "الاسم بالعربية مطلوب"),
+  titleEn: z.string().min(1, "الاسم بالإنجليزية مطلوب"),
+  descriptionAr: z.string().optional(),
+  descriptionEn: z.string().optional(),
+  slug: z.string().min(2, "الرابط البديل مطلوب"),
+  salesChannel: z.enum(["RETAIL", "BULK"]),
+  minimumOrderQuantity: z.coerce.number().min(1, "الحد الأدنى للطلب يجب أن يكون 1 على الأقل"),
+  categoryPublicId: z.string().optional(),
+  brandPublicId: z.string().optional(),
+});
+
+type ProductEditValues = z.infer<typeof productEditSchema>;
+
 export function ProductDetailPage({ productId }: { productId: string }) {
   const queryClient = useQueryClient();
   const { confirm, element: confirmElement } = useConfirmDialog();
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+
   const product = useQuery({
     queryKey: ["/api/admin/products", productId],
     queryFn: () => adminApi<AnyRecord>(`/api/admin/products/${productId}`),
@@ -871,6 +887,50 @@ export function ProductDetailPage({ productId }: { productId: string }) {
     queryFn: () => adminApi<AnyRecord>(`/api/admin/products/${productId}/availability`),
     retry: false,
   });
+
+  const categoriesQuery = useQuery({
+    queryKey: ["/api/admin/categories", { flat: "true", limit: "500" }],
+    queryFn: () => adminApi<unknown>(withQuery("/api/admin/categories", { flat: "true", limit: "500" })),
+  });
+
+  const brandsQuery = useQuery({
+    queryKey: ["/api/admin/brands", { limit: "500" }],
+    queryFn: () => adminApi<unknown>(withQuery("/api/admin/brands", { limit: "500" })),
+  });
+
+  const categoriesList = useMemo(() => {
+    if (!categoriesQuery.data) return [];
+    if (Array.isArray(categoriesQuery.data)) return categoriesQuery.data;
+    const page = categoriesQuery.data as { data?: AnyRecord[] };
+    return page.data ?? [];
+  }, [categoriesQuery.data]);
+
+  const brandsList = useMemo(() => {
+    if (!brandsQuery.data) return [];
+    if (Array.isArray(brandsQuery.data)) return brandsQuery.data;
+    const page = brandsQuery.data as { data?: AnyRecord[] };
+    return page.data ?? [];
+  }, [brandsQuery.data]);
+
+  const categoryOptions = useMemo<EditorFieldOption[]>(() => {
+    return [
+      { value: "", label: "بدون تصنيف" },
+      ...categoriesList.map((c) => ({
+        value: String(c.publicId ?? ""),
+        label: localizedText(c.name, text(c.slug), "ar"),
+      })),
+    ];
+  }, [categoriesList]);
+
+  const brandOptions = useMemo<EditorFieldOption[]>(() => {
+    return [
+      { value: "", label: "بدون علامة تجارية" },
+      ...brandsList.map((b) => ({
+        value: String(b.publicId ?? ""),
+        label: localizedText(b.name, text(b.slug), "ar"),
+      })),
+    ];
+  }, [brandsList]);
 
   const updateStatus = useMutation({
     mutationFn: (status: "ACTIVE" | "DRAFT" | "ARCHIVED") =>
@@ -900,9 +960,60 @@ export function ProductDetailPage({ productId }: { productId: string }) {
   });
 
   const row = product.data;
+
+  const editProduct = useMutation({
+    mutationFn: (values: ProductEditValues) => {
+      const vendorId = String((row?.vendor as AnyRecord | undefined)?.publicId ?? row?.vendorPublicId ?? "");
+      if (!vendorId) {
+        throw new Error("لم يتم العثور على معرف البائع لهذا المنتج");
+      }
+      return adminApi(`/api/admin/vendors/${vendorId}/products/${productId}`, {
+        method: "PATCH",
+        body: {
+          title: { ar: values.titleAr, en: values.titleEn },
+          description: { ar: values.descriptionAr, en: values.descriptionEn },
+          slug: values.slug,
+          salesChannel: values.salesChannel,
+          minimumOrderQuantity: values.minimumOrderQuantity,
+          categoryPublicId: values.categoryPublicId || null,
+          brandPublicId: values.brandPublicId || null,
+        },
+      });
+    },
+    onSuccess: async () => {
+      toast.success("تم تحديث بيانات المنتج بنجاح");
+      setEditDrawerOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/products", productId] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "تعذر تحديث بيانات المنتج");
+    },
+  });
+
   const variants = Array.isArray(row?.variants) ? row.variants as AnyRecord[] : [];
   const images = Array.isArray(row?.images) ? row.images as AnyRecord[] : [];
   const availabilityVariants = Array.isArray(availability.data?.variants) ? availability.data.variants as AnyRecord[] : [];
+
+  const fields: EditorField<ProductEditValues>[] = [
+    { name: "titleAr", label: "الاسم بالعربية", required: true, colSpan: 2 },
+    { name: "titleEn", label: "الاسم بالإنجليزية", required: true, colSpan: 2 },
+    { name: "descriptionAr", label: "الوصف بالعربية", kind: "textarea", rows: 3, colSpan: 2 },
+    { name: "descriptionEn", label: "الوصف بالإنجليزية", kind: "textarea", rows: 3, colSpan: 2 },
+    { name: "slug", label: "الرابط البديل (Slug)", required: true, dir: "ltr", colSpan: 2 },
+    {
+      name: "salesChannel",
+      label: "قناة البيع",
+      kind: "select",
+      options: [
+        { value: "RETAIL", label: "تجزئة (Retail)" },
+        { value: "BULK", label: "جملة (Bulk)" },
+      ],
+      required: true,
+    },
+    { name: "minimumOrderQuantity", label: "الحد الأدنى للطلب", kind: "number", required: true },
+    { name: "categoryPublicId", label: "التصنيف", kind: "select", options: categoryOptions, colSpan: 2 },
+    { name: "brandPublicId", label: "العلامة التجارية", kind: "select", options: brandOptions, colSpan: 2 },
+  ];
 
   return (
     <div className="space-y-6">
@@ -910,9 +1021,19 @@ export function ProductDetailPage({ productId }: { productId: string }) {
         title={row ? localizedText(row.title, productId, "ar") : `تفاصيل المنتج ${productId}`}
         description="تفتيش بيانات المنتج، البائع، التصنيف، الصور، المتغيرات، وتوفر المخزون."
         actions={
-          <Link href="/products" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">
-            كل المنتجات
-          </Link>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setEditDrawerOpen(true)}
+              disabled={product.isLoading}
+            >
+              تعديل المنتج
+            </Button>
+            <Link href="/products" className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted">
+              كل المنتجات
+            </Link>
+          </div>
         }
       />
       {product.isLoading ? (
@@ -1036,6 +1157,29 @@ export function ProductDetailPage({ productId }: { productId: string }) {
         </>
       ) : null}
       {confirmElement}
+      {row && (
+        <EntityEditorDrawer<ProductEditValues>
+          open={editDrawerOpen}
+          onOpenChange={setEditDrawerOpen}
+          title="تعديل المنتج"
+          description="تحديث بيانات المنتج الأساسية، التصنيف، العلامة التجارية وقناة البيع."
+          schema={productEditSchema}
+          fields={fields}
+          defaultValues={{
+            titleAr: String((row.title as AnyRecord)?.ar || ""),
+            titleEn: String((row.title as AnyRecord)?.en || ""),
+            descriptionAr: String((row.description as AnyRecord)?.ar || ""),
+            descriptionEn: String((row.description as AnyRecord)?.en || ""),
+            slug: String(row.slug || ""),
+            salesChannel: (row.salesChannel as "RETAIL" | "BULK") || "RETAIL",
+            minimumOrderQuantity: Number(row.minimumOrderQuantity || 1),
+            categoryPublicId: String((row.category as AnyRecord)?.publicId || ""),
+            brandPublicId: String((row.brand as AnyRecord)?.publicId || ""),
+          }}
+          pending={editProduct.isPending}
+          onSubmit={(values) => editProduct.mutate(values)}
+        />
+      )}
     </div>
   );
 }

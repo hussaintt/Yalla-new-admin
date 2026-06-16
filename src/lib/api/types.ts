@@ -171,18 +171,37 @@ export type ResolutionRow = {
 
 export type ResolutionPage = CursorPage<ResolutionRow>;
 
-export type BillingCycle = {
-  id: string;
-  label: string;
-  startsAt?: string;
-  endsAt?: string;
-  closesAt?: string;
-  status?: "ACTIVE" | "CLOSED" | "PENDING" | "DRAFT" | string;
-  collectedCents?: number;
-  expectedCents?: number;
-  currency?: string;
-  progressPct?: number;
-  daysRemaining?: number;
+export type BillingOverview = {
+  currency: string;
+  generatedAt: string;
+  /** The month currently accruing commission — invoiced on the 1st of next month. */
+  currentMonth: {
+    label: string;
+    accruedCommissionCents: number;
+    orderCount: number;
+    nextInvoiceAt: string;
+  };
+  /** The most recent automatic billing run (invoices for the previous month). */
+  lastBilledPeriod: {
+    label: string;
+    issuedAt: string;
+    periodStart: string;
+    periodEnd: string;
+    /** Day-6 payment deadline; unpaid vendors are suspended after this. */
+    graceEndsAt: string;
+    invoiceCount: number;
+    totalCommissionCents: number;
+    paidCents: number;
+    balanceDueCents: number;
+  } | null;
+  /** Money owed right now across all periods. */
+  outstanding: {
+    invoiceCount: number;
+    overdueInvoiceCount: number;
+    balanceDueCents: number;
+  };
+  /** Vendors currently suspended for an unpaid overdue commission invoice. */
+  restrictedVendorCount: number;
 };
 
 export type CommissionSlice = {

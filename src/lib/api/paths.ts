@@ -33,11 +33,9 @@ export const adminPaths = {
     withQuery("/api/admin/admin/ops/activity-feed", { limit }),
   opsAlerts: (severity?: "critical" | "warning" | "info", limit = 10) =>
     withQuery("/api/admin/admin/ops/alerts", { severity, limit }),
-  billingCyclesCurrent: () => "/api/admin/admin/billing/cycles/current",
-  billingCyclesCurrentCommissionBreakdown: (groupBy: "category" | "vendor" | "tier" = "category") =>
-    withQuery("/api/admin/admin/billing/cycles/current/commission-breakdown", { groupBy }),
-  billingCyclesClose: (cycleId: string) =>
-    `/api/admin/admin/billing/cycles/${encodeURIComponent(cycleId)}/close`,
+  billingOverview: () => "/api/admin/admin/billing/overview",
+  billingCommissionBreakdown: (groupBy: "category" | "vendor" | "tier" = "category") =>
+    withQuery("/api/admin/admin/billing/commission-breakdown", { groupBy }),
   payouts: (status?: "PENDING" | "PAID" | "FAILED" | "REJECTED", limit = 20) =>
     withQuery("/api/admin/admin/payouts", { status, limit }),
   payoutsMarkPaid: (payoutId: string) =>

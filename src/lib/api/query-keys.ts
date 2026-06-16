@@ -28,7 +28,7 @@ export const queryKeys = {
       ["dashboard", "vendor-ranking", days, limit] as const,
     queues: ["dashboard", "queues"] as const,
     auditLogs: (limit: number) => ["dashboard", "audit-logs", limit] as const,
-    billingCycle: ["dashboard", "billing-cycle"] as const,
+    billingOverview: ["dashboard", "billing-overview"] as const,
     commissionBreakdown: (groupBy: string) =>
       ["dashboard", "commission-breakdown", groupBy] as const,
     welcomeSummary: (days: number) =>

@@ -29,7 +29,7 @@ import {
   SectionAnchorNav,
   type AnchorSection,
 } from "@/components/dashboard/section-anchor-nav";
-import { BillingCycleCard } from "@/components/dashboard/billing-cycle-card";
+import { BillingSummaryCard } from "@/components/dashboard/billing-summary-card";
 import { CommissionRatesCard } from "@/components/dashboard/commission-rates-card";
 import { KycApprovalQueue, useKycQueue } from "@/components/dashboard/kyc-approval-queue";
 import { ActivityFeed, useActivityFeed } from "@/components/dashboard/activity-feed";
@@ -322,11 +322,11 @@ export default function DashboardPage() {
         <SectionHeader title="المالية والعمولات" />
         <div className="grid gap-5 xl:grid-cols-2">
           <SectionCard
-            id="billing-cycle"
-            title="دورة الفوترة الحالية"
-            description={welcome.data?.currency ?? currency}
+            id="billing-summary"
+            title="فوترة العمولات الشهرية"
+            description="مستحقات البائعين، الفواتير المتأخرة، والمتاجر الموقوفة"
           >
-            <BillingCycleCard />
+            <BillingSummaryCard />
           </SectionCard>
           <CommissionRatesCard />
         </div>

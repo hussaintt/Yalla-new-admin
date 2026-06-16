@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DollarSign, FileText, TrendingUp, Users } from "lucide-react";
+import { AlertTriangle, DollarSign, FileText, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -10,11 +10,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState, ErrorState, LoadingState } from "@/components/state/async-states";
 import { StatusBadge } from "@/components/status/status-badge";
 import { Button } from "@/components/ui/button";
-import { CodeBlock } from "@/components/ui/code-block";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { adminApi } from "@/lib/api/admin-client";
 import { adminPaths } from "@/lib/api/paths";
+import type { BillingOverview, CommissionBreakdown } from "@/lib/api/types";
 import { formatDate, formatMoney } from "@/lib/formatters";
 
 type AnyRecord = Record<string, unknown>;
@@ -27,29 +27,20 @@ function text(value: unknown, fallback = "-") {
 export function BillingOverviewPage() {
   const queryClient = useQueryClient();
 
-  const cycle = useQuery({
-    queryKey: ["billing", "cycles", "current"],
-    queryFn: () => adminApi<AnyRecord>(adminPaths.billingCyclesCurrent()),
+  const overview = useQuery({
+    queryKey: ["billing", "overview"],
+    queryFn: () => adminApi<BillingOverview>(adminPaths.billingOverview()),
   });
 
   const breakdown = useQuery({
-    queryKey: ["billing", "cycles", "current", "breakdown"],
-    queryFn: () => adminApi<AnyRecord[]>(adminPaths.billingCyclesCurrentCommissionBreakdown("vendor")),
+    queryKey: ["billing", "commission-breakdown", "vendor"],
+    queryFn: () =>
+      adminApi<CommissionBreakdown>(adminPaths.billingCommissionBreakdown("vendor")),
   });
 
   const payouts = useQuery({
     queryKey: ["billing", "payouts", "pending"],
     queryFn: () => adminApi<AnyRecord>(adminPaths.payouts("PENDING", 10)),
-  });
-
-  const closeCycle = useMutation({
-    mutationFn: (cycleId: string) =>
-      adminApi(adminPaths.billingCyclesClose(cycleId), { method: "POST", body: {} }),
-    onSuccess: async () => {
-      toast.success("تم إغلاق دورة الفوترة بنجاح");
-      await queryClient.invalidateQueries({ queryKey: ["billing"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إغلاق الدورة"),
   });
 
   const markPaid = useMutation({
@@ -72,23 +63,24 @@ export function BillingOverviewPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر رفض الدفعة"),
   });
 
-  const cycleData = cycle.data;
+  const data = overview.data;
+  const currency = data?.currency ?? "EGP";
   const payoutsList: AnyRecord[] = (() => {
-    const data = payouts.data;
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === "object" && Array.isArray((data as AnyRecord).data)) {
-      return (data as AnyRecord).data as AnyRecord[];
+    const raw = payouts.data;
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === "object" && Array.isArray((raw as AnyRecord).data)) {
+      return (raw as AnyRecord).data as AnyRecord[];
     }
     return [];
   })();
 
-  const breakdownList: AnyRecord[] = Array.isArray(breakdown.data) ? breakdown.data : [];
+  const slices = breakdown.data?.slices ?? [];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="نظرة عامة على الفوترة"
-        description="دورة الفوترة الحالية وتوزيع العمولات والمدفوعات المعلّقة."
+        description="فواتير العمولات الشهرية تُصدَر تلقائياً يوم 1 من كل شهر، وآخر موعد للسداد يوم 6 — بعده يُوقَف نشاط البائع المتأخر."
         actions={
           <Link
             href="/billing"
@@ -99,93 +91,102 @@ export function BillingOverviewPage() {
         }
       />
 
-      {cycle.isLoading ? (
-        <LoadingState label="جار تحميل بيانات الدورة" />
-      ) : cycle.isError ? (
-        <ErrorState message={cycle.error.message} />
-      ) : cycleData ? (
+      {overview.isLoading ? (
+        <LoadingState label="جار تحميل بيانات الفوترة" />
+      ) : overview.isError ? (
+        <ErrorState message={overview.error.message} />
+      ) : data ? (
         <>
           <section className="grid gap-4 md:grid-cols-4">
             <KpiCard
+              icon={DollarSign}
+              tone="orange"
+              label="مستحقات غير مدفوعة"
+              value={formatMoney(data.outstanding.balanceDueCents, currency)}
+            />
+            <KpiCard
               icon={FileText}
               tone="blue"
-              label="معرف الدورة"
-              value={text(cycleData.publicId ?? cycleData.id)}
+              label="فواتير متأخرة"
+              value={text(data.outstanding.overdueInvoiceCount, "0")}
+            />
+            <KpiCard
+              icon={AlertTriangle}
+              tone="purple"
+              label="متاجر موقوفة"
+              value={text(data.restrictedVendorCount, "0")}
             />
             <KpiCard
               icon={TrendingUp}
               tone="teal"
-              label="حالة الدورة"
-              value={text(cycleData.status)}
-            />
-            <KpiCard
-              icon={DollarSign}
-              tone="orange"
-              label="إجمالي العمولات"
-              value={formatMoney(cycleData.totalCommissionCents, "EGP")}
-            />
-            <KpiCard
-              icon={Users}
-              tone="purple"
-              label="عدد البائعين"
-              value={text(cycleData.vendorCount, "0")}
+              label={`عمولة ${data.currentMonth.label} (تتراكم)`}
+              value={formatMoney(data.currentMonth.accruedCommissionCents, currency)}
             />
           </section>
 
           <SectionCard
-            title="تفاصيل الدورة الحالية"
-            description="بداية ونهاية الدورة وإجراء الإغلاق."
-            actions={
-              cycleData.status !== "CLOSED" ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  disabled={closeCycle.isPending}
-                  onClick={() =>
-                    closeCycle.mutate(
-                      String(cycleData.publicId ?? cycleData.id),
-                    )
-                  }
-                >
-                  إغلاق الدورة
-                </Button>
-              ) : null
-            }
+            title="آخر دورة فوترة"
+            description="آخر دفعة فواتير تم توليدها تلقائياً للشهر السابق."
           >
-            <dl className="grid gap-4 md:grid-cols-3">
-              <div>
-                <dt className="text-xs font-semibold text-ink-muted">بداية الدورة</dt>
-                <dd className="mt-1 text-sm text-ink-strong">{formatDate(cycleData.startDate ?? cycleData.startsAt)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold text-ink-muted">نهاية الدورة</dt>
-                <dd className="mt-1 text-sm text-ink-strong">{formatDate(cycleData.endDate ?? cycleData.endsAt)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold text-ink-muted">الحالة</dt>
-                <dd className="mt-1"><StatusBadge status={text(cycleData.status, "UNKNOWN")} /></dd>
-              </div>
-            </dl>
+            {data.lastBilledPeriod ? (
+              <dl className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <dt className="text-xs font-semibold text-ink-muted">الشهر</dt>
+                  <dd className="mt-1 text-sm text-ink-strong">{data.lastBilledPeriod.label}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold text-ink-muted">تاريخ الإصدار</dt>
+                  <dd className="mt-1 text-sm text-ink-strong">{formatDate(data.lastBilledPeriod.issuedAt)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold text-ink-muted">آخر موعد للسداد</dt>
+                  <dd className="mt-1 text-sm font-bold text-ink-strong">{formatDate(data.lastBilledPeriod.graceEndsAt)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold text-ink-muted">عدد الفواتير</dt>
+                  <dd className="mt-1 text-sm text-ink-strong">{data.lastBilledPeriod.invoiceCount}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold text-ink-muted">إجمالي العمولة</dt>
+                  <dd className="mt-1 text-sm text-ink-strong">{formatMoney(data.lastBilledPeriod.totalCommissionCents, currency)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold text-ink-muted">مدفوع / متبقٍّ</dt>
+                  <dd className="mt-1 text-sm text-ink-strong">
+                    {formatMoney(data.lastBilledPeriod.paidCents, currency)}
+                    <span className="text-ink-muted"> · متبقٍّ </span>
+                    {formatMoney(data.lastBilledPeriod.balanceDueCents, currency)}
+                  </dd>
+                </div>
+              </dl>
+            ) : (
+              <EmptyState title="لم تُصدَر فواتير بعد" description="ستُولَّد أول دفعة فواتير تلقائياً في بداية الشهر القادم." />
+            )}
           </SectionCard>
         </>
       ) : (
-        <EmptyState title="لا توجد دورة فوترة حالية" description="لم يتم إنشاء دورة فوترة بعد." />
+        <EmptyState title="لا توجد بيانات فوترة" description="تعذر تحميل ملخص الفوترة." />
       )}
 
-      {breakdownList.length > 0 ? (
-        <SectionCard title="توزيع العمولات حسب البائع" description="تفاصيل العمولات في الدورة الحالية مقسمة حسب البائع.">
+      <SectionCard title="توزيع عمولات الشهر الحالي حسب البائع" description="العمولات المتراكمة هذا الشهر مقسمة حسب البائع.">
+        {breakdown.isLoading ? (
+          <LoadingState label="جار تحميل التوزيع" />
+        ) : breakdown.isError ? (
+          <ErrorState message={breakdown.error.message} />
+        ) : slices.length === 0 ? (
+          <EmptyState title="لا توجد عمولات بعد" description="لم تُسجَّل عمولات لهذا الشهر حتى الآن." />
+        ) : (
           <CursorDataTable
-            data={breakdownList}
-            getRowKey={(row) => String(row.vendorId ?? row.category ?? JSON.stringify(row))}
+            data={slices}
+            getRowKey={(row) => row.key}
             columns={[
-              { id: "vendor", header: "البائع / التصنيف", cell: (row) => text(row.vendorName ?? row.category) },
-              { id: "total", header: "إجمالي العمولة", cell: (row) => formatMoney(row.totalCommissionCents ?? row.commissionCents, "EGP") },
-              { id: "orders", header: "الطلبات", cell: (row) => text(row.orderCount, "0") },
-              { id: "rate", header: "النسبة", cell: (row) => row.rateBps ? `${(Number(row.rateBps) / 100).toFixed(1)}%` : text(row.rate) },
+              { id: "vendor", header: "البائع", cell: (row) => text(row.label) },
+              { id: "amount", header: "إجمالي العمولة", cell: (row) => formatMoney(row.amountCents, currency) },
+              { id: "pct", header: "النسبة", cell: (row) => `${row.pct}%` },
             ]}
           />
-        </SectionCard>
-      ) : null}
+        )}
+      </SectionCard>
 
       <SectionCard title="المدفوعات المعلّقة" description="دفعات البائعين بانتظار التحويل أو المراجعة.">
         {payouts.isLoading ? (
