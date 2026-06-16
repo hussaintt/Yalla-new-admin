@@ -12,6 +12,8 @@ export const queryKeys = {
     ["verifications", params] as const,
   reviews: (params: Record<string, string | undefined>) =>
     ["reviews", params] as const,
+  resolutions: (params: Record<string, string | undefined>) =>
+    ["resolutions", params] as const,
   auditLogs: (params: Record<string, string | undefined>) =>
     ["audit-logs", params] as const,
   payouts: (status?: string, limit = 20) =>

@@ -134,6 +134,34 @@ export type VendorPage = CursorPage<AdminVendorRow>;
 export type ReviewPage = CursorPage<ReviewRow>;
 export type AuditLogPage = CursorPage<AuditLogRow>;
 
+export type ResolutionEventRow = {
+  publicId: string;
+  type: string;
+  note?: string | null;
+  actorType: string;
+  createdAt?: string;
+};
+
+export type ResolutionRow = {
+  publicId: string;
+  caseNumber: string;
+  type: "RETURN" | "DISPUTE" | string;
+  status: string;
+  reasonCode: string;
+  description?: string | null;
+  returnTrackingNumber?: string | null;
+  resolutionNote?: string | null;
+  createdAt?: string;
+  resolvedAt?: string | null;
+  order?: { publicId?: string; orderNumber?: string; status?: string } | null;
+  vendor?: { publicId?: string; displayName?: unknown } | null;
+  user?: { publicId?: string; firstName?: string | null; lastName?: string | null } | null;
+  refund?: { publicId?: string; amountCents?: number; status?: string } | null;
+  events?: ResolutionEventRow[];
+};
+
+export type ResolutionPage = CursorPage<ResolutionRow>;
+
 export type BillingCycle = {
   id: string;
   label: string;

@@ -16,6 +16,7 @@ import {
   Sparkles,
   Store,
   Truck,
+  Undo2,
   Users,
   X,
 } from "lucide-react";
@@ -59,6 +60,7 @@ const navItems: NavItem[] = [
   { href: "/orders", label: "الطلبات", description: "البيع والتسليم", icon: ShoppingBag, permission: "orders:read", group: "market", countKey: "orders" },
   { href: "/catalog", label: "الكتالوج", description: "الفئات والعلامات التجارية", icon: Boxes, permission: "catalog:write", group: "market" },
   { href: "/banners", label: "البانرات الإعلانية", description: "إدارة بنرات العروض والصفحة الرئيسية", icon: Sparkles, permission: "marketing:write", group: "market" },
+  { href: "/resolutions", label: "الإرجاع والنزاعات", description: "مراجعة طلبات الإرجاع والشكاوى", icon: Undo2, permission: "orders:write", group: "market" },
   { href: "/refunds", label: "الاستردادات", description: "المراجعة والاعتماد", icon: ReceiptText, permission: "refunds:write", group: "finance" },
   { href: "/shipping", label: "الشحن والتسويات", description: "المناطق والأسعار", icon: Truck, permission: "settings:write", group: "finance" },
   { href: "/payments", label: "سجل المدفوعات", description: "الحركات المالية", icon: BadgeDollarSign, permission: "payments:read", group: "finance" },
