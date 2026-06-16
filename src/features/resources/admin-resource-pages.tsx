@@ -861,6 +861,7 @@ export function ProductsPage() {
 
 export function ProductDetailPage({ productId }: { productId: string }) {
   const queryClient = useQueryClient();
+  const { confirm, element: confirmElement } = useConfirmDialog();
   const product = useQuery({
     queryKey: ["/api/admin/products", productId],
     queryFn: () => adminApi<AnyRecord>(`/api/admin/products/${productId}`),
@@ -883,6 +884,18 @@ export function ProductDetailPage({ productId }: { productId: string }) {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "تعذر تحديث حالة المنتج");
+    },
+  });
+
+  const deleteProduct = useMutation({
+    mutationFn: () => adminApi(`/api/admin/admin/products/${productId}`, { method: "DELETE" }),
+    onSuccess: async () => {
+      toast.success("تم حذف المنتج نهائياً");
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      setTimeout(() => { window.location.href = "/products"; }, 500);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "تعذر حذف المنتج");
     },
   });
 
@@ -1000,11 +1013,29 @@ export function ProductDetailPage({ productId }: { productId: string }) {
                 >
                   إرجاع للمسودة (Draft)
                 </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline-danger"
+                  disabled={deleteProduct.isPending}
+                  onClick={async () => {
+                    const result = await confirm({
+                      title: "حذف المنتج نهائياً",
+                      description: "سيتم حذف هذا المنتج وكل بياناته (المتغيرات، الصور، المخزون، التقييمات) نهائياً من قاعدة البيانات. لا يمكن التراجع عن هذا الإجراء. إذا كان المنتج مرتبطاً بطلبات سابقة فلن يُحذف، استخدم الإيقاف المؤقت (Archived) بدلاً من ذلك.",
+                      confirmLabel: "حذف نهائي",
+                      variant: "danger",
+                    });
+                    if (result.confirmed) deleteProduct.mutate();
+                  }}
+                >
+                  حذف نهائي من قاعدة البيانات
+                </Button>
               </div>
             }
           />
         </>
       ) : null}
+      {confirmElement}
     </div>
   );
 }
