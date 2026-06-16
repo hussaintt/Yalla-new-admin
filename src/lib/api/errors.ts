@@ -21,7 +21,14 @@ export class ApiError extends Error {
 
 export function normalizeApiError(payload: unknown, statusCode: number) {
   if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
+    const root = payload as Record<string, unknown>;
+    // The backend wraps domain errors as { error: { code, message, details } },
+    // while the BFF proxy emits flat { code, message } objects. Unwrap the
+    // envelope so the real backend reason surfaces instead of a generic fallback.
+    const record =
+      root.error && typeof root.error === "object"
+        ? (root.error as Record<string, unknown>)
+        : root;
     return {
       statusCode,
       code:

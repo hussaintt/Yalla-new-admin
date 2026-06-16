@@ -139,7 +139,13 @@ export type ResolutionEventRow = {
   type: string;
   note?: string | null;
   actorType: string;
+  triggeredBy?: { publicId?: string; firstName?: string | null; lastName?: string | null } | null;
   createdAt?: string;
+};
+
+export type ResolutionAffectedItem = {
+  orderItemId: string;
+  quantity: number;
 };
 
 export type ResolutionRow = {
@@ -149,11 +155,14 @@ export type ResolutionRow = {
   status: string;
   reasonCode: string;
   description?: string | null;
+  affectedItems?: ResolutionAffectedItem[] | null;
   returnTrackingNumber?: string | null;
   resolutionNote?: string | null;
+  receivedAt?: string | null;
   createdAt?: string;
   resolvedAt?: string | null;
   order?: { publicId?: string; orderNumber?: string; status?: string } | null;
+  split?: { publicId?: string; status?: string } | null;
   vendor?: { publicId?: string; displayName?: unknown } | null;
   user?: { publicId?: string; firstName?: string | null; lastName?: string | null } | null;
   refund?: { publicId?: string; amountCents?: number; status?: string } | null;

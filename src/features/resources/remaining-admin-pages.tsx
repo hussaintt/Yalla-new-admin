@@ -631,6 +631,7 @@ export function RefundDetailPage({ refundId }: { refundId: string }) {
   const payment = (row?.payment as AnyRecord | undefined) ?? undefined;
   const currency = text(row?.currency ?? payment?.currency, "EGP");
   const createdBy = row?.createdBy as AnyRecord | undefined;
+  const resolutionCase = row?.resolutionCase as AnyRecord | undefined;
 
   return (
     <div className="space-y-6">
@@ -654,6 +655,7 @@ export function RefundDetailPage({ refundId }: { refundId: string }) {
           { label: "المبلغ", value: formatMoney(row.amountCents, currency) },
           { label: "السبب", value: text(row.reason) },
           { label: "المدفوعة المرتبطة", value: payment ? <Link className="font-medium text-primary hover:underline" href={`/payments/${text(payment.publicId)}`}>{text(payment.publicId)}</Link> : "-" },
+          { label: "الحالة المرتبطة", value: resolutionCase?.publicId ? <Link className="font-medium text-primary hover:underline" href={`/resolutions/${text(resolutionCase.publicId)}`}>{text(resolutionCase.caseNumber, text(resolutionCase.publicId))}</Link> : "-" },
           { label: "البوابة", value: text(row.gateway ?? payment?.gateway) },
           { label: "مرجع البوابة", value: text(row.gatewayRefundId ?? row.gatewayTransactionId) },
           { label: "بواسطة", value: text(createdBy?.email) },

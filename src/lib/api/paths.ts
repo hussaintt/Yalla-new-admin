@@ -136,6 +136,11 @@ export const adminPaths = {
     withQuery("/api/admin/admin/refunds", params),
   adminRefundDetail: (refundId: string) =>
     `/api/admin/admin/refunds/${encodeURIComponent(refundId)}`,
+  // Resolutions (returns & disputes)
+  adminResolutions: (params: Record<string, string | undefined> = {}) =>
+    withQuery("/api/admin/admin/resolutions", params),
+  adminResolutionDetail: (publicId: string) =>
+    `/api/admin/admin/resolutions/${encodeURIComponent(publicId)}`,
   // Bulk orders
   bulkOrders: (params: Record<string, string | undefined> = {}) =>
     withQuery("/api/admin/bulk/orders", params),

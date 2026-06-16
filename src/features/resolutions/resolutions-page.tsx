@@ -109,9 +109,12 @@ export default function ResolutionsPage() {
                 header: "الحالة",
                 cell: (item) => (
                   <div className="max-w-md">
-                    <div className="font-medium text-ink-strong">
+                    <Link
+                      href={`/resolutions/${item.publicId}`}
+                      className="font-medium text-primary hover:underline"
+                    >
                       {item.type === "RETURN" ? "إرجاع" : "نزاع"} · {item.caseNumber}
-                    </div>
+                    </Link>
                     <div className="mt-1 text-xs text-ink-muted">{item.reasonCode}</div>
                     {item.description ? (
                       <p className="mt-1 line-clamp-2 text-sm leading-6 text-ink-muted">
