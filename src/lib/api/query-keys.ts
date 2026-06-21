@@ -10,6 +10,8 @@ export const queryKeys = {
     ["vendors", vendorId, "verifications"] as const,
   verifications: (params: Record<string, string | undefined>) =>
     ["verifications", params] as const,
+  vendorEditRequests: (params: Record<string, string | undefined>) =>
+    ["vendorEditRequests", params] as const,
   reviews: (params: Record<string, string | undefined>) =>
     ["reviews", params] as const,
   resolutions: (params: Record<string, string | undefined>) =>

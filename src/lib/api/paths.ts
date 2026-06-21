@@ -78,6 +78,15 @@ export const adminPaths = {
     withQuery("/api/admin/admin/verifications", { status: "PENDING", limit }),
   verificationsReview: (verificationId: string) =>
     `/api/admin/admin/verifications/${encodeURIComponent(verificationId)}/review`,
+  vendorEditRequests: (params: Record<string, string | undefined> = {}) =>
+    withQuery("/api/admin/admin/vendor-edit-requests", params),
+  vendorEditRequestsQueue: (limit = 4) =>
+    withQuery("/api/admin/admin/vendor-edit-requests", {
+      status: "PENDING",
+      limit,
+    }),
+  vendorEditReview: (editId: string) =>
+    `/api/admin/admin/vendor-edit-requests/${encodeURIComponent(editId)}/review`,
   auditLogs: (limit = 8) =>
     withQuery("/api/admin/admin/audit-logs", { limit }),
   auditLogsExport: (params: Record<string, string | undefined> = {}) =>

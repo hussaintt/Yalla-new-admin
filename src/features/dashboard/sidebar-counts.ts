@@ -7,6 +7,7 @@ import { adminApi } from "@/lib/api/admin-client";
 export type SidebarCounts = {
   vendors: number;
   verifications: number;
+  vendorEdits: number;
   products: number;
   orders: number;
   billing: number;
@@ -16,6 +17,7 @@ export type SidebarCounts = {
 const EMPTY: SidebarCounts = {
   vendors: 0,
   verifications: 0,
+  vendorEdits: 0,
   products: 0,
   orders: 0,
   billing: 0,

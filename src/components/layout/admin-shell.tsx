@@ -46,7 +46,7 @@ type NavItem = {
   icon: React.ElementType;
   permission?: AdminPermission;
   group: "core" | "market" | "finance" | "system";
-  countKey?: "vendors" | "verifications" | "products" | "orders" | "billing";
+  countKey?: "vendors" | "verifications" | "vendorEdits" | "products" | "orders" | "billing";
 };
 
 const navItems: NavItem[] = [
@@ -55,6 +55,7 @@ const navItems: NavItem[] = [
   { href: "/customers", label: "العملاء", description: "حسابات عملاء المنصة", icon: Users, permission: "users:read", group: "core" },
   { href: "/vendors", label: "البائعون", description: "حسابات البائعين", icon: Warehouse, permission: "vendors:read", group: "core" },
   { href: "/stores", label: "المتاجر", description: "الإدارة والاعتماد والتحقق", icon: Store, permission: "stores:read", group: "core", countKey: "vendors" },
+  { href: "/store-edits", label: "تعديلات المتاجر", description: "مراجعة تعديلات بيانات المتجر", icon: Store, permission: "stores:read", group: "core", countKey: "vendorEdits" },
   { href: "/verifications", label: "طلبات KYC", description: "مراجعة الوثائق", icon: ShieldCheck, permission: "kyc:review", group: "core", countKey: "verifications" },
   { href: "/products", label: "المنتجات", description: "الحالة والمحتوى", icon: PackageSearch, permission: "products:review", group: "market", countKey: "products" },
   { href: "/orders", label: "الطلبات", description: "البيع والتسليم", icon: ShoppingBag, permission: "orders:read", group: "market", countKey: "orders" },
