@@ -36,6 +36,10 @@ export type AdminVendorRow = {
   email?: string | null;
   phone?: string | null;
   storeType?: string | null;
+  logoUrl?: string | null;
+  bannerUrl?: string | null;
+  logoImageFileId?: number | null;
+  bannerImageFileId?: number | null;
   status: string;
   approvedAt?: string | null;
   createdAt?: string;
@@ -120,7 +124,7 @@ export type TopProductRow = {
 };
 
 export type VendorRankingRow = {
-  vendor?: { publicId?: string; slug?: string; displayName?: unknown; status?: string };
+  vendor?: { publicId?: string; slug?: string; displayName?: unknown; status?: string; logoUrl?: string | null };
   splitCount?: number;
   totalCents?: number;
   vendorPayoutCents?: number;

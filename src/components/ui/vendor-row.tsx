@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ export function VendorRow({
   rank,
   avatar,
   avatarClassName,
+  logoUrl,
   name,
   category,
   revenue,
@@ -24,6 +26,7 @@ export function VendorRow({
   rank: number;
   avatar: React.ReactNode;
   avatarClassName?: string;
+  logoUrl?: string | null;
   name: React.ReactNode;
   category: React.ReactNode;
   revenue: React.ReactNode;
@@ -49,14 +52,17 @@ export function VendorRow({
       >
         {rank}
       </div>
-      <div
+      <Avatar
         className={cn(
-          "grid size-10 shrink-0 place-items-center rounded-full text-[13px] font-extrabold text-white",
+          "size-10 shrink-0 rounded-full text-[13px] font-extrabold text-white",
           avatarClassName ?? "bg-gradient-to-br from-primary to-brand-teal-600",
         )}
       >
-        {avatar}
-      </div>
+        {logoUrl ? <AvatarImage src={logoUrl} alt="" className="object-cover" /> : null}
+        <AvatarFallback className="bg-transparent text-[13px] font-extrabold text-white">
+          {avatar}
+        </AvatarFallback>
+      </Avatar>
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13px] font-bold text-ink-strong">{name}</div>
         <div className="mt-0.5 text-[11px] text-ink-muted">{category}</div>

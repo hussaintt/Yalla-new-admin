@@ -63,6 +63,7 @@ export function TopVendorsCard() {
               rank={index + 1}
               avatar={logoText(row)}
               avatarClassName={gradients[index % gradients.length]}
+              logoUrl={row.vendor?.logoUrl}
               name={localizedText(row.vendor?.displayName, row.vendor?.slug ?? "—", "ar")}
               category={`${row.vendor?.status ?? "—"} • ${row.splitCount ?? 0} عملية`}
               revenue={formatMoney(row.totalCents, "EGP")}

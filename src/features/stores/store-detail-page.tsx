@@ -16,6 +16,8 @@ import { VendorNotifyDialog } from "@/components/modals/vendor-notify-dialog";
 import { EmptyState, ErrorState, LoadingState } from "@/components/state/async-states";
 import { SectionCard } from "@/components/ui/section-card";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { ImageUploadInput } from "@/components/image-upload-input";
+import { StoreLogo } from "@/components/ui/store-logo";
 import { ClickableImageWithFileFallback } from "@/components/clickable-image-fallback";
 import { StatusBadge } from "@/components/status/status-badge";
 import { adminApi } from "@/lib/api/admin-client";
@@ -212,6 +214,39 @@ export function StoreDetailPage({ vendorId }: { vendorId: string }) {
         <ErrorState message={vendor.error.message} />
       ) : (
         <div className="space-y-6">
+          <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+            <div className="relative h-40 w-full bg-gradient-to-br from-primary/15 to-brand-teal-600/15 sm:h-52">
+              {vendor.data?.bannerUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={vendor.data.bannerUrl}
+                  alt="غلاف المتجر"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-ink-muted">
+                  لا يوجد غلاف للمتجر
+                </div>
+              )}
+            </div>
+            <div className="flex items-end gap-4 px-6 pb-5">
+              <StoreLogo
+                src={vendor.data?.logoUrl}
+                name={localizedText(vendor.data?.displayName, vendor.data?.legalName ?? "—", "ar")}
+                className="-mt-12 size-24 rounded-2xl border-4 border-card shadow-md"
+                fallbackClassName="rounded-2xl text-2xl"
+              />
+              <div className="pb-1">
+                <div className="text-lg font-bold text-ink-strong">
+                  {localizedText(vendor.data?.displayName, vendor.data?.legalName ?? vendorId, "ar")}
+                </div>
+                <div className="text-xs text-ink-muted" dir="ltr">
+                  {vendor.data?.slug ?? "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <section className="grid gap-4 md:grid-cols-4">
             <KpiCard
               icon={Package}
@@ -290,6 +325,20 @@ export function StoreDetailPage({ vendorId }: { vendorId: string }) {
               </div>
             </dl>
           </SectionCard>
+
+          {canEdit ? (
+            <SectionCard
+              title="الشعار والغلاف"
+              description="حدّث شعار المتجر وصورة الغلاف. تظهر هذه الصور للعملاء في التطبيق."
+            >
+              <StoreImagesEditor
+                key={`${vendor.data?.logoUrl ?? ""}|${vendor.data?.bannerUrl ?? ""}`}
+                vendorId={vendorId}
+                initialLogoUrl={vendor.data?.logoUrl}
+                initialBannerUrl={vendor.data?.bannerUrl}
+              />
+            </SectionCard>
+          ) : null}
 
           <SectionCard
             title="القرارات الإدارية للمتجر"
@@ -584,6 +633,74 @@ export function StoreDetailPage({ vendorId }: { vendorId: string }) {
         ]}
         onSubmit={(values) => updateVendor.mutate(values)}
       />
+    </div>
+  );
+}
+
+function StoreImagesEditor({
+  vendorId,
+  initialLogoUrl,
+  initialBannerUrl,
+}: {
+  vendorId: string;
+  initialLogoUrl?: string | null;
+  initialBannerUrl?: string | null;
+}) {
+  const queryClient = useQueryClient();
+  // Seeded with the current URLs (http…) so the previews render. When the admin
+  // uploads, onChange replaces the value with the uploaded file publicId; an empty
+  // string means the image was removed.
+  const [logo, setLogo] = useState(initialLogoUrl ?? "");
+  const [banner, setBanner] = useState(initialBannerUrl ?? "");
+
+  const logoChanged = logo !== (initialLogoUrl ?? "");
+  const bannerChanged = banner !== (initialBannerUrl ?? "");
+  const dirty = logoChanged || bannerChanged;
+
+  const save = useMutation({
+    mutationFn: () => {
+      const body: Record<string, unknown> = {};
+      // Only send a field that actually changed. A new value is an uploaded file
+      // publicId; an empty value clears the image (null).
+      if (logoChanged) body.logoImageFileId = logo === "" ? null : logo;
+      if (bannerChanged) body.bannerImageFileId = banner === "" ? null : banner;
+      return adminApi(adminPaths.vendorDetail(vendorId), { method: "PATCH", body });
+    },
+    onSuccess: async () => {
+      toast.success("تم تحديث الشعار والغلاف");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.vendorDetail(vendorId) });
+      await queryClient.invalidateQueries({ queryKey: ["vendors"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "تعذر تحديث الصور");
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-6 sm:grid-cols-2">
+        <ImageUploadInput
+          label="شعار المتجر"
+          value={logo}
+          onChange={setLogo}
+          purpose="VENDOR_LOGO"
+        />
+        <ImageUploadInput
+          label="غلاف المتجر"
+          value={banner}
+          onChange={setBanner}
+          purpose="VENDOR_BANNER"
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          onClick={() => save.mutate()}
+          disabled={!dirty || save.isPending}
+        >
+          {save.isPending ? "جارٍ الحفظ..." : "حفظ الشعار والغلاف"}
+        </Button>
+      </div>
     </div>
   );
 }

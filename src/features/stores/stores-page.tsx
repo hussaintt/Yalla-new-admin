@@ -16,6 +16,7 @@ import { ErrorState } from "@/components/state/async-states";
 import { StatusBadge } from "@/components/status/status-badge";
 import { adminApi } from "@/lib/api/admin-client";
 import { CopyButton } from "@/components/ui/copy-button";
+import { StoreLogo } from "@/components/ui/store-logo";
 import { adminPaths } from "@/lib/api/paths";
 import { queryKeys } from "@/lib/api/query-keys";
 import type { VendorPage } from "@/lib/api/types";
@@ -101,18 +102,25 @@ export default function StoresPage() {
                 id: "store",
                 header: "المتجر",
                 cell: (store) => (
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <Link
-                        href={`/stores/${store.publicId}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {localizedText(store.displayName, store.legalName, "ar")}
-                      </Link>
-                      <CopyButton value={store.publicId} />
+                  <div className="flex items-center gap-3">
+                    <StoreLogo
+                      src={store.logoUrl}
+                      name={localizedText(store.displayName, store.legalName ?? store.slug ?? "—", "ar")}
+                      className="size-10"
+                    />
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <Link
+                          href={`/stores/${store.publicId}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {localizedText(store.displayName, store.legalName, "ar")}
+                        </Link>
+                        <CopyButton value={store.publicId} />
+                      </div>
+                      <div className="text-xs text-ink-muted">{store.legalName}</div>
+                      <div className="text-xs text-ink-muted">{store.email ?? store.slug}</div>
                     </div>
-                    <div className="text-xs text-ink-muted">{store.legalName}</div>
-                    <div className="text-xs text-ink-muted">{store.email ?? store.slug}</div>
                   </div>
                 ),
               },

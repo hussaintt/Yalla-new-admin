@@ -10,29 +10,13 @@ import { StatusBadge } from "@/components/status/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StoreLogo } from "@/components/ui/store-logo";
 import { ErrorState, LoadingState } from "@/components/state/async-states";
 import { adminApi } from "@/lib/api/admin-client";
 import { adminPaths } from "@/lib/api/paths";
 import { queryKeys } from "@/lib/api/query-keys";
 import type { AdminVendorRow } from "@/lib/api/types";
 import { formatDate, localizedText } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
-
-const gradients = [
-  "bg-gradient-to-br from-brand-yellow-300 to-brand-orange",
-  "bg-gradient-to-br from-brand-teal-600 to-primary",
-  "bg-gradient-to-br from-brand-purple to-brand-pink",
-  "bg-gradient-to-br from-brand-blue to-brand-cyan",
-  "bg-gradient-to-br from-brand-rose to-brand-orange",
-  "bg-gradient-to-br from-brand-green to-brand-teal-600",
-];
-
-function logoText(row: AdminVendorRow) {
-  if (typeof row.legalName === "string" && row.legalName.length >= 2)
-    return row.legalName.slice(0, 2).toUpperCase();
-  return (row.slug ?? "YN").slice(0, 2).toUpperCase();
-}
 
 type SuspendTarget = { id: string; name: string } | null;
 
@@ -146,20 +130,15 @@ export function RecentVendorsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {vendors.data.map((row, index) => (
+            {vendors.data.map((row) => (
               <TableRow key={row.publicId ?? row.id}>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
-                    <Avatar
-                      className={cn(
-                        "size-8 text-[11px] text-white",
-                        gradients[index % gradients.length],
-                      )}
-                    >
-                      <AvatarFallback className="bg-transparent text-white">
-                        {logoText(row)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <StoreLogo
+                      src={row.logoUrl}
+                      name={localizedText(row.displayName, row.legalName ?? row.slug ?? "—", "ar")}
+                      className="size-8"
+                    />
                     <div>
                       <div className="font-bold">{localizedText(row.displayName, row.slug ?? "—", "ar")}</div>
                       <div className="text-[10px] text-ink-muted">
