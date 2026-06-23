@@ -31,6 +31,7 @@ import { adminApi } from "@/lib/api/admin-client";
 import type { CursorPage } from "@/lib/api/pagination";
 import { adminPaths, withQuery } from "@/lib/api/paths";
 import { formatDate, formatMoney, localizedText } from "@/lib/formatters";
+import { SLUG_PATTERN, toSlugOrFallback } from "@/lib/slug";
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
 
 type AnyRecord = Record<string, unknown>;
@@ -1218,14 +1219,17 @@ function SimpleCreateForm({
 const catalogItemSchema = z.object({
   nameAr: z.string().min(1, "الاسم بالعربية مطلوب"),
   nameEn: z.string().optional().default(""),
-  slug: z.string().min(1, "المعرّف النصي مطلوب"),
+  slug: z
+    .string()
+    .min(1, "المعرّف النصي مطلوب")
+    .regex(SLUG_PATTERN, "أحرف إنجليزية صغيرة وأرقام وشرطات فقط"),
 });
 type CatalogItemValues = z.infer<typeof catalogItemSchema>;
 
 const catalogItemFields: EditorField<CatalogItemValues>[] = [
   { name: "nameAr", label: "الاسم بالعربية", required: true, placeholder: "مثال: إلكترونيات", colSpan: 2 },
   { name: "nameEn", label: "الاسم بالإنجليزية", placeholder: "e.g. Electronics", dir: "ltr", colSpan: 2 },
-  { name: "slug", label: "المعرّف النصي (Slug)", required: true, placeholder: "electronics", dir: "ltr", colSpan: 2 },
+  { name: "slug", label: "المعرّف النصي (Slug) — أحرف إنجليزية صغيرة وأرقام وشرطات", required: true, placeholder: "electronics", dir: "ltr", colSpan: 2 },
 ];
 
 const defaultCatalogValues: CatalogItemValues = { nameAr: "", nameEn: "", slug: "" };
@@ -1398,7 +1402,7 @@ export function CatalogPage() {
       setImportProgress({ current: 0, total: allBrands.length });
       for (let i = 0; i < allBrands.length; i++) {
         const bName = allBrands[i];
-        const slug = bName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const slug = toSlugOrFallback(bName);
         try {
           await adminApi("/api/admin/brands", {
             method: "POST",
@@ -1477,9 +1481,11 @@ export function CatalogPage() {
   }
 
   function handleDrawerSubmit(values: CatalogItemValues) {
-    if (drawerTarget === "category") createCategory.mutate(values);
-    else if (drawerTarget === "brand") createBrand.mutate(values);
-    else createStore.mutate(values);
+    // Guarantee a URL-safe slug even if validation was bypassed or the name is Arabic-only.
+    const normalized = { ...values, slug: toSlugOrFallback(values.slug, values.nameEn || values.nameAr) };
+    if (drawerTarget === "category") createCategory.mutate(normalized);
+    else if (drawerTarget === "brand") createBrand.mutate(normalized);
+    else createStore.mutate(normalized);
   }
 
   const drawerPending = createCategory.isPending || createBrand.isPending || createStore.isPending;

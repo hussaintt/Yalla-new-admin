@@ -24,6 +24,7 @@ import { FormField, FormInput, FormSelect } from "@/components/ui/form-field";
 import { SectionCard } from "@/components/ui/section-card";
 import { adminApi } from "@/lib/api/admin-client";
 import { adminPaths } from "@/lib/api/paths";
+import { slugify, toSlugOrFallback } from "@/lib/slug";
 import { ImageUploadInput } from "@/components/image-upload-input";
 import { formatDate, formatMoney, localizedText, formatName, roleLabel } from "@/lib/formatters";
 import { ClickableImageWithFileFallback } from "@/components/clickable-image-fallback";
@@ -670,16 +671,18 @@ export function CatalogBrandsPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
   const brands = useQuery({
     queryKey: ["/api/admin/brands"],
     queryFn: () => adminApi<unknown>("/api/admin/brands?limit=50"),
   });
   const createBrand = useMutation({
-    mutationFn: () => adminApi("/api/admin/brands", { method: "POST", body: { name: { ar: name, en: name }, slug, isActive: true } }),
+    mutationFn: () => adminApi("/api/admin/brands", { method: "POST", body: { name: { ar: name, en: name }, slug: toSlugOrFallback(slug, name), isActive: true } }),
     onSuccess: async () => {
       toast.success("تم إنشاء العلامة التجارية");
       setName("");
       setSlug("");
+      setSlugTouched(false);
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/brands"] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "تعذر إنشاء العلامة"),
@@ -698,8 +701,8 @@ export function CatalogBrandsPage() {
       />
       <SectionCard title="إضافة علامة تجارية">
         <form onSubmit={(event) => { event.preventDefault(); createBrand.mutate(); }} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
-          <TextInput label="الاسم" value={name} onChange={setName} required />
-          <TextInput label="Slug" value={slug} onChange={setSlug} required />
+          <TextInput label="الاسم" value={name} onChange={(v) => { setName(v); if (!slugTouched) setSlug(slugify(v)); }} required />
+          <TextInput label="Slug (أحرف إنجليزية صغيرة وأرقام وشرطات)" value={slug} onChange={(v) => { setSlugTouched(true); setSlug(slugify(v)); }} placeholder="coca-cola" required />
           <Button type="submit" variant="primary" disabled={createBrand.isPending}>حفظ</Button>
         </form>
       </SectionCard>
@@ -727,16 +730,18 @@ export function CatalogStoreCategoriesPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
   const list = useQuery({
     queryKey: ["/api/admin/store-categories"],
     queryFn: () => adminApi<AnyRecord[]>("/api/admin/store-categories"),
   });
   const create = useMutation({
-    mutationFn: () => adminApi("/api/admin/store-categories", { method: "POST", body: { name: { ar: name, en: name }, slug, isActive: true } }),
+    mutationFn: () => adminApi("/api/admin/store-categories", { method: "POST", body: { name: { ar: name, en: name }, slug: toSlugOrFallback(slug, name), isActive: true } }),
     onSuccess: async () => {
       toast.success("تم إنشاء تصنيف المتجر");
       setName("");
       setSlug("");
+      setSlugTouched(false);
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/store-categories"] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "تعذر إنشاء تصنيف المتجر"),
@@ -755,8 +760,8 @@ export function CatalogStoreCategoriesPage() {
       />
       <SectionCard title="إضافة تصنيف متجر">
         <form onSubmit={(event) => { event.preventDefault(); create.mutate(); }} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
-          <TextInput label="الاسم" value={name} onChange={setName} required />
-          <TextInput label="Slug" value={slug} onChange={setSlug} required />
+          <TextInput label="الاسم" value={name} onChange={(v) => { setName(v); if (!slugTouched) setSlug(slugify(v)); }} required />
+          <TextInput label="Slug (أحرف إنجليزية صغيرة وأرقام وشرطات)" value={slug} onChange={(v) => { setSlugTouched(true); setSlug(slugify(v)); }} placeholder="electronics" required />
           <Button type="submit" variant="primary" disabled={create.isPending}>حفظ</Button>
         </form>
       </SectionCard>
