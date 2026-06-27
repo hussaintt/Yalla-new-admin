@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Download, FolderTree, Layers, Plus, RefreshCw, Search, Store, Tag } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useForm, Controller } from "react-hook-form";
@@ -74,6 +74,25 @@ function stableRowKey(row: AnyRecord) {
 
 function idOf(row: AnyRecord) {
   return stableRowKey(row);
+}
+
+// Brands are paginated server-side, so a single request is capped. Page through
+// every brand via the cursor so selectors and counts are never limited.
+async function fetchAllBrands(): Promise<AnyRecord[]> {
+  const all: AnyRecord[] = [];
+  let cursor: string | undefined;
+  for (let guard = 0; guard < 1000; guard++) {
+    const data = await adminApi<unknown>(withQuery("/api/admin/brands", { limit: "1000", cursor }));
+    if (Array.isArray(data)) {
+      all.push(...(data as AnyRecord[]));
+      break;
+    }
+    const page = data as CursorPage<AnyRecord>;
+    all.push(...(page.data ?? []));
+    if (!page.hasMore || !page.nextCursor) break;
+    cursor = page.nextCursor;
+  }
+  return all;
 }
 
 function DetailGrid({ rows }: { rows: Array<{ label: string; value: React.ReactNode }> }) {
@@ -895,8 +914,8 @@ export function ProductDetailPage({ productId }: { productId: string }) {
   });
 
   const brandsQuery = useQuery({
-    queryKey: ["/api/admin/brands", { limit: "500" }],
-    queryFn: () => adminApi<unknown>(withQuery("/api/admin/brands", { limit: "500" })),
+    queryKey: ["/api/admin/brands", "all"],
+    queryFn: fetchAllBrands,
   });
 
   const categoriesList = useMemo(() => {
@@ -1279,6 +1298,11 @@ function CatalogTabContent<T extends AnyRecord>({
   searchValue: string;
 }) {
   const [cursor, setCursor] = useState<string | undefined>();
+  // Reset to the first page whenever the search term changes, so a stale cursor
+  // from prior paging doesn't scope the search to a partial window.
+  useEffect(() => {
+    setCursor(undefined);
+  }, [searchValue]);
   const params = { limit: "20", cursor, ...(query ?? {}) };
   const url = withQuery(path, params);
   const list = useQuery({
@@ -1337,6 +1361,15 @@ export function CatalogPage() {
   const [brandSearch, setBrandSearch] = useState("");
   const [storeSearch, setStoreSearch] = useState("");
 
+  // Categories and store-categories return full arrays, so their search filters
+  // client-side. Brands are paginated, so brand search must hit the server —
+  // debounce it to avoid a request per keystroke.
+  const [debouncedBrandSearch, setDebouncedBrandSearch] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedBrandSearch(brandSearch.trim()), 250);
+    return () => clearTimeout(id);
+  }, [brandSearch]);
+
   const categoriesCount = useQuery({
     queryKey: ["/api/admin/categories", "count"],
     queryFn: async () => {
@@ -1347,13 +1380,9 @@ export function CatalogPage() {
     },
   });
   const brandsCount = useQuery({
-    queryKey: ["/api/admin/brands", "count"],
-    queryFn: async () => {
-      const data = await adminApi<unknown>(withQuery("/api/admin/brands", { limit: "1" }));
-      if (Array.isArray(data)) return data.length;
-      const page = data as CursorPage<AnyRecord>;
-      return page.data?.length ?? 0;
-    },
+    queryKey: ["/api/admin/brands", "all"],
+    queryFn: fetchAllBrands,
+    select: (rows) => rows.length,
   });
   const storeCatsCount = useQuery({
     queryKey: ["/api/admin/store-categories", "count"],
@@ -1620,7 +1649,8 @@ export function CatalogPage() {
           </div>
           <CatalogTabContent<AnyRecord>
             path="/api/admin/brands"
-            searchValue={brandSearch}
+            query={{ q: debouncedBrandSearch || undefined }}
+            searchValue={debouncedBrandSearch}
             columns={[
               {
                 id: "name",
