@@ -294,6 +294,7 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
   const row = order.data;
   const items = Array.isArray(row?.items) ? row.items as AnyRecord[] : [];
   const splits = Array.isArray(row?.splits) ? row.splits as AnyRecord[] : Array.isArray(row?.orderSplits) ? row.orderSplits as AnyRecord[] : [];
+  const shipments = Array.isArray(row?.shipments) ? row.shipments as AnyRecord[] : [];
   const currentStatus = text(row?.status, "");
 
   const refreshOrder = () =>
@@ -480,6 +481,39 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
             ]} />
           </SectionCard>
 
+          <SectionCard title="الشحنات" description="شحنات شركات الشحن المرتبطة بهذا الطلب وحالة تتبعها.">
+            {shipments.length === 0 ? (
+              <EmptyState title="لا توجد شحنات" description="لم يربط أي بائع شحنة عبر شركة شحن بهذا الطلب بعد." />
+            ) : (
+              <CursorDataTable data={shipments} getRowKey={(shipment) => idOf(shipment)} columns={[
+                { id: "carrier", header: "شركة الشحن", cell: (shipment) => text(shipment.carrierCode) },
+                {
+                  id: "tracking",
+                  header: "رقم التتبع",
+                  cell: (shipment) => {
+                    const trackingNumber = text(shipment.trackingNumber, "");
+                    const trackingUrl = text(shipment.trackingUrl, "");
+                    return (
+                      <div className="flex items-center gap-1">
+                        {trackingUrl ? (
+                          <a href={trackingUrl} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline" dir="ltr">
+                            {trackingNumber}
+                          </a>
+                        ) : (
+                          <span dir="ltr">{trackingNumber}</span>
+                        )}
+                        {trackingNumber ? <CopyButton value={trackingNumber} /> : null}
+                      </div>
+                    );
+                  },
+                },
+                { id: "status", header: "الحالة", cell: (shipment) => <StatusBadge status={text(shipment.status, "CREATED")} /> },
+                { id: "lastEvent", header: "آخر تحديث من الناقل", cell: (shipment) => shipment.lastEventAt ? formatDate(shipment.lastEventAt) : "—" },
+                { id: "lastPolled", header: "آخر استعلام", cell: (shipment) => shipment.lastPolledAt ? formatDate(shipment.lastPolledAt) : "—" },
+              ]} />
+            )}
+          </SectionCard>
+
           <SectionCard title="إجراءات الطلب" description="حدّث حالة الطلب أو ألغِه إدارياً.">
             <div className="flex flex-wrap items-end gap-3">
               <div className="w-56">
@@ -535,18 +569,32 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
               }
               return (
                 <ol className="relative space-y-4 border-s-2 border-border ps-5">
-                  {list.map((event, index) => (
-                    <li key={idOf(event) + index} className="relative">
-                      <span className="absolute -start-[1.45rem] top-1 h-3 w-3 rounded-full bg-primary ring-4 ring-primary-soft" />
-                      <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge status={text(event.type ?? event.action ?? event.status, "EVENT")} />
-                        <span className="text-xs text-ink-muted">{formatDate(event.createdAt ?? event.at ?? event.timestamp)}</span>
-                      </div>
-                      {Boolean(event.message ?? event.description ?? event.note) ? (
-                        <p className="mt-1 text-sm text-ink-strong">{text(event.message ?? event.description ?? event.note)}</p>
-                      ) : null}
-                    </li>
-                  ))}
+                  {list.map((event, index) => {
+                    const eventType = text(event.type ?? event.action ?? event.status, "EVENT");
+                    const data = (event.data && typeof event.data === "object" ? event.data : {}) as AnyRecord;
+                    const isShipmentEvent = eventType === "SHIPMENT_TRACKING";
+                    const message = isShipmentEvent
+                      ? localizedText(data.description, text(event.message ?? event.description ?? event.note, ""), "ar")
+                      : text(event.message ?? event.description ?? event.note, "");
+                    const shipmentMeta = isShipmentEvent
+                      ? [text(data.carrierCode, ""), text(data.trackingNumber, ""), text(data.location, "")].filter(Boolean).join(" • ")
+                      : "";
+                    return (
+                      <li key={idOf(event) + index} className="relative">
+                        <span className="absolute -start-[1.45rem] top-1 h-3 w-3 rounded-full bg-primary ring-4 ring-primary-soft" />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge status={eventType} />
+                          <span className="text-xs text-ink-muted">{formatDate(isShipmentEvent && data.occurredAt ? data.occurredAt : event.createdAt ?? event.at ?? event.timestamp)}</span>
+                        </div>
+                        {message ? (
+                          <p className="mt-1 text-sm text-ink-strong">{message}</p>
+                        ) : null}
+                        {shipmentMeta ? (
+                          <p className="mt-0.5 text-xs text-ink-muted" dir="ltr">{shipmentMeta}</p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ol>
               );
             })()}

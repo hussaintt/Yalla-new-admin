@@ -6,9 +6,9 @@ const statusGroups: Record<Tone, string[]> = {
   green: ["ACTIVE", "APPROVED", "PAID", "DELIVERED", "COMPLETED", "SUCCESS", "PUBLISHED", "ENABLED", "DUE", "OPEN"],
   yellow: ["PENDING", "PROCESSING", "AWAITING_REVIEW", "REVIEW", "DRAFT", "ON_HOLD"],
   red: ["REJECTED", "FAILED", "SUSPENDED", "CANCELLED", "CANCELED", "BLOCKED", "DISABLED"],
-  blue: ["NOTIFICATION_SENT", "IN_PROGRESS", "INFO"],
+  blue: ["NOTIFICATION_SENT", "IN_PROGRESS", "INFO", "SHIPMENT_TRACKING", "CREATED", "IN_TRANSIT", "OUT_FOR_DELIVERY"],
   purple: ["SCHEDULED", "QUEUED"],
-  orange: ["AWAITING_PAYMENT", "PAYMENT_DUE"],
+  orange: ["AWAITING_PAYMENT", "PAYMENT_DUE", "RETURNED", "EXCEPTION"],
   gray: ["ARCHIVED", "EXPIRED", "INACTIVE", "DELETED"],
 };
 
@@ -47,6 +47,12 @@ const statusLabels: Record<string, string> = {
   INFO: "معلومة",
   SCHEDULED: "مجدول",
   QUEUED: "في الطابور",
+  SHIPMENT_TRACKING: "تحديث الشحن",
+  CREATED: "تم الإنشاء",
+  IN_TRANSIT: "في الطريق",
+  OUT_FOR_DELIVERY: "في طريقها للتسليم",
+  RETURNED: "مرتجعة",
+  EXCEPTION: "تعذّر التسليم",
 };
 
 const toneClass: Record<Tone, string> = {

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useState } from "react";
 
 import { CursorDataTable } from "@/components/data-table/cursor-data-table";
 import { CursorPager } from "@/components/data-table/cursor-pager";
@@ -11,9 +12,12 @@ import { PageHeader } from "@/components/layout/page-header";
 import { TableSkeleton } from "@/components/state/table-skeleton";
 import { EmptyState, ErrorState } from "@/components/state/async-states";
 import { StatusBadge } from "@/components/status/status-badge";
+import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api/admin-client";
 import { withQuery } from "@/lib/api/paths";
 import { formatDate, formatMoney } from "@/lib/formatters";
+
+import { SettleInvoiceDialog } from "./billing-actions";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -31,6 +35,7 @@ function text(value: unknown, fallback = "-") {
 
 export function BillingInvoicesPage() {
   const searchParams = useSearchParams();
+  const [settling, setSettling] = useState<AnyRecord | null>(null);
   const params = {
     status: searchParams.get("status") ?? undefined,
     cursor: searchParams.get("cursor") ?? undefined,
@@ -103,8 +108,20 @@ export function BillingInvoicesPage() {
               },
               {
                 id: "amount",
-                header: "المبلغ",
-                cell: (row) => formatMoney(row.totalCents ?? row.amountCents, String(row.currency ?? "EGP")),
+                header: "إجمالي العمولة",
+                cell: (row) => formatMoney(row.totalCommissionCents ?? row.totalCents, String(row.currency ?? "EGP")),
+              },
+              {
+                id: "due",
+                header: "المتبقي",
+                cell: (row) => {
+                  const due = Number(row.balanceDueCents ?? 0);
+                  return (
+                    <span className={due > 0 ? "font-bold text-destructive" : "text-ink-muted"}>
+                      {formatMoney(due, String(row.currency ?? "EGP"))}
+                    </span>
+                  );
+                },
               },
               {
                 id: "status",
@@ -126,6 +143,26 @@ export function BillingInvoicesPage() {
                 header: "تاريخ الإنشاء",
                 cell: (row) => formatDate(row.createdAt),
               },
+              {
+                id: "actions",
+                header: "إجراءات",
+                cell: (row) => {
+                  const status = String(row.status ?? "");
+                  const due = Number(row.balanceDueCents ?? 0);
+                  if (!["OPEN", "OVERDUE"].includes(status) || due <= 0) return null;
+                  return (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setSettling(row)}
+                      className="border-success/30 text-success"
+                    >
+                      تسوية نقدية
+                    </Button>
+                  );
+                },
+              },
             ]}
           />
           <CursorPager
@@ -134,6 +171,14 @@ export function BillingInvoicesPage() {
           />
         </>
       )}
+
+      <SettleInvoiceDialog
+        invoice={settling}
+        open={settling !== null}
+        onOpenChange={(open) => {
+          if (!open) setSettling(null);
+        }}
+      />
     </div>
   );
 }

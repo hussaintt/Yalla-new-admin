@@ -82,12 +82,20 @@ export function BillingOverviewPage() {
         title="نظرة عامة على الفوترة"
         description="فواتير العمولات الشهرية تُصدَر تلقائياً يوم 1 من كل شهر، وآخر موعد للسداد يوم 6 — بعده يُوقَف نشاط البائع المتأخر."
         actions={
-          <Link
-            href="/billing"
-            className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted"
-          >
-            الفوترة الرئيسية
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/billing/vendors?restricted=true"
+              className="inline-flex h-10 items-center rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+            >
+              المتاجر الموقوفة والعمولات المستحقة
+            </Link>
+            <Link
+              href="/billing"
+              className="inline-flex h-10 items-center rounded-2xl border border-border bg-card px-4 text-sm font-bold text-ink-strong shadow-sm transition hover:bg-muted"
+            >
+              الفوترة الرئيسية
+            </Link>
+          </div>
         }
       />
 
@@ -110,12 +118,14 @@ export function BillingOverviewPage() {
               label="فواتير متأخرة"
               value={text(data.outstanding.overdueInvoiceCount, "0")}
             />
-            <KpiCard
-              icon={AlertTriangle}
-              tone="purple"
-              label="متاجر موقوفة"
-              value={text(data.restrictedVendorCount, "0")}
-            />
+            <Link href="/billing/vendors?restricted=true" className="block">
+              <KpiCard
+                icon={AlertTriangle}
+                tone="purple"
+                label="متاجر موقوفة (اضغط للإدارة)"
+                value={text(data.restrictedVendorCount, "0")}
+              />
+            </Link>
             <KpiCard
               icon={TrendingUp}
               tone="teal"
