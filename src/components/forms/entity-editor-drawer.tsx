@@ -54,6 +54,8 @@ type EntityEditorDrawerProps<T extends FieldValues> = {
   submitLabel?: string;
   pending?: boolean;
   onSubmit: (values: T) => void;
+  /** Extra content rendered after the schema-driven fields (e.g. an image uploader managed outside react-hook-form). */
+  extra?: React.ReactNode;
 };
 
 /**
@@ -73,6 +75,7 @@ export function EntityEditorDrawer<T extends FieldValues>({
   submitLabel = "حفظ",
   pending = false,
   onSubmit,
+  extra,
 }: EntityEditorDrawerProps<T>) {
   const {
     register,
@@ -163,6 +166,7 @@ export function EntityEditorDrawer<T extends FieldValues>({
                 </FormField>
               );
             })}
+            {extra ? <div className="md:col-span-2">{extra}</div> : null}
           </div>
 
           <DialogFooter className="border-t border-border p-6">

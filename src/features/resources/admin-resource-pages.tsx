@@ -1257,11 +1257,17 @@ function SimpleCreateForm({
   fields,
   onSubmit,
   pending,
+  extra,
+  actions,
 }: {
   title: string;
   fields: Array<{ label: string; value: string; onChange: (value: string) => void; required?: boolean; placeholder?: string }>;
   onSubmit: () => void;
   pending?: boolean;
+  /** Extra controls (selects/switches) rendered between the text fields and the submit button. */
+  extra?: React.ReactNode;
+  /** Extra buttons rendered beside the submit button (e.g. cancel-edit). */
+  actions?: React.ReactNode;
 }) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1275,9 +1281,13 @@ function SimpleCreateForm({
             <TextInput key={field.label} {...field} />
           ))}
         </div>
-        <Button type="submit" size="sm" disabled={pending}>
-          حفظ
-        </Button>
+        {extra}
+        <div className="flex items-center gap-2">
+          <Button type="submit" size="sm" disabled={pending}>
+            حفظ
+          </Button>
+          {actions}
+        </div>
       </form>
     </SectionCard>
   );
@@ -1408,6 +1418,7 @@ export function CatalogPage() {
   const [catSearch, setCatSearch] = useState("");
   const [brandSearch, setBrandSearch] = useState("");
   const [storeSearch, setStoreSearch] = useState("");
+  const [categoryImageFileId, setCategoryImageFileId] = useState("");
 
   // Categories and store-categories return full arrays, so their search filters
   // client-side. Brands are paginated, so brand search must hit the server —
@@ -1506,11 +1517,17 @@ export function CatalogPage() {
     mutationFn: (values: CatalogItemValues) =>
       adminApi("/api/admin/categories", {
         method: "POST",
-        body: { name: { ar: values.nameAr, en: values.nameEn || values.nameAr }, slug: values.slug, isActive: true },
+        body: {
+          name: { ar: values.nameAr, en: values.nameEn || values.nameAr },
+          slug: values.slug,
+          isActive: true,
+          ...(categoryImageFileId ? { imageFileId: categoryImageFileId } : {}),
+        },
       }),
     onSuccess: async () => {
       toast.success("تم إنشاء التصنيف");
       setDrawerOpen(false);
+      setCategoryImageFileId("");
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إنشاء التصنيف"),
@@ -1750,7 +1767,10 @@ export function CatalogPage() {
 
       <EntityEditorDrawer<CatalogItemValues>
         open={drawerOpen}
-        onOpenChange={setDrawerOpen}
+        onOpenChange={(open) => {
+          setDrawerOpen(open);
+          if (!open) setCategoryImageFileId("");
+        }}
         title={drawerLabels[drawerTarget].title}
         description={drawerLabels[drawerTarget].description}
         schema={catalogItemSchema}
@@ -1759,6 +1779,14 @@ export function CatalogPage() {
         submitLabel="إضافة"
         pending={drawerPending}
         onSubmit={handleDrawerSubmit}
+        extra={drawerTarget === "category" ? (
+          <ImageUploadInput
+            label="صورة التصنيف (اختياري)"
+            value={categoryImageFileId}
+            onChange={setCategoryImageFileId}
+            purpose="CATEGORY_IMAGE"
+          />
+        ) : undefined}
       />
     </div>
   );
@@ -1772,8 +1800,59 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
   const [attrType, setAttrType] = useState("STRING");
   const [attrUnit, setAttrUnit] = useState("");
   const [attrOptions, setAttrOptions] = useState("");
+  const [attrIsVariantAxis, setAttrIsVariantAxis] = useState(false);
+  const [attrIsRequired, setAttrIsRequired] = useState(false);
+  const [attrIsFilterable, setAttrIsFilterable] = useState(true);
+  const [editingAttribute, setEditingAttribute] = useState<AnyRecord | null>(null);
   const [editingName, setEditingName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
+  const [pendingImageFileId, setPendingImageFileId] = useState("");
+
+  function resetAttrForm() {
+    setAttrKey("");
+    setAttrLabel("");
+    setAttrType("STRING");
+    setAttrUnit("");
+    setAttrOptions("");
+    setAttrIsVariantAxis(false);
+    setAttrIsRequired(false);
+    setAttrIsFilterable(true);
+    setEditingAttribute(null);
+  }
+
+  function startEditingAttribute(attr: AnyRecord) {
+    setEditingAttribute(attr);
+    setAttrKey(text(attr.key, ""));
+    setAttrLabel(localizedText(attr.labelI18n, text(attr.key, ""), "ar"));
+    setAttrType(text(attr.dataType, "STRING"));
+    setAttrUnit(attr.unit ? String(attr.unit) : "");
+    setAttrOptions(Array.isArray(attr.options) ? attr.options.join(", ") : "");
+    setAttrIsVariantAxis(attr.isVariantAxis === true);
+    setAttrIsRequired(attr.isRequired === true);
+    setAttrIsFilterable(attr.isFilterable !== false);
+  }
+
+  function parsedAttrOptions() {
+    return attrOptions
+      .split(",")
+      .map((option) => option.trim())
+      .filter(Boolean);
+  }
+
+  // The Flutter seller wizard only surfaces variant axes that are ENUM with
+  // options, so enforce that shape here instead of letting a silent mismatch
+  // hide the variants step.
+  function validateAttrForm() {
+    if (attrIsVariantAxis && attrType !== "ENUM") {
+      toast.error("محور المتغيرات يجب أن يكون من نوع ENUM بقائمة خيارات (مثل: أحمر, أزرق)");
+      return false;
+    }
+    if (attrType === "ENUM" && parsedAttrOptions().length === 0) {
+      toast.error("أدخل خيارات ENUM مفصولة بفواصل");
+      return false;
+    }
+    return true;
+  }
 
   const category = useQuery({
     queryKey: ["/api/admin/categories", categoryId],
@@ -1785,9 +1864,7 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
   });
   const createAttribute = useMutation({
     mutationFn: () => {
-      const options = attrOptions
-        ? attrOptions.split(",").map((option) => option.trim()).filter(Boolean)
-        : undefined;
+      const options = parsedAttrOptions();
       return adminApi(`/api/admin/categories/${categoryId}/attributes`, {
         method: "POST",
         body: {
@@ -1795,22 +1872,44 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
           labelI18n: { ar: attrLabel, en: attrLabel },
           dataType: attrType,
           unit: attrUnit || undefined,
-          options,
-          isFilterable: true,
-          isVariantAxis: false,
-          isRequired: false,
+          options: options.length ? options : undefined,
+          isFilterable: attrIsFilterable,
+          isVariantAxis: attrIsVariantAxis,
+          isRequired: attrIsRequired,
         },
       });
     },
     onSuccess: async () => {
       toast.success("تم إنشاء خاصية التصنيف");
-      setAttrKey("");
-      setAttrLabel("");
-      setAttrUnit("");
-      setAttrOptions("");
+      resetAttrForm();
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/categories", categoryId, "attributes"] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "تعذر إنشاء الخاصية"),
+  });
+  const updateAttribute = useMutation({
+    mutationFn: (attributeId: string) => {
+      const options = parsedAttrOptions();
+      // key is deliberately not patched — products already reference it in
+      // their attributes JSON, so renaming would orphan existing values.
+      return adminApi(`/api/admin/categories/${categoryId}/attributes/${attributeId}`, {
+        method: "PATCH",
+        body: {
+          labelI18n: { ar: attrLabel, en: attrLabel },
+          dataType: attrType,
+          unit: attrUnit || undefined,
+          options: options.length ? options : undefined,
+          isFilterable: attrIsFilterable,
+          isVariantAxis: attrIsVariantAxis,
+          isRequired: attrIsRequired,
+        },
+      });
+    },
+    onSuccess: async () => {
+      toast.success("تم تحديث الخاصية");
+      resetAttrForm();
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/categories", categoryId, "attributes"] });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "تعذر تحديث الخاصية"),
   });
   const deleteAttribute = useMutation({
     mutationFn: (attributeId: string) =>
@@ -1833,6 +1932,19 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/categories", categoryId] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "تعذر تحديث التصنيف"),
+  });
+  const updateCategoryImage = useMutation({
+    mutationFn: (imageFileId: string | null) =>
+      adminApi(`/api/admin/categories/${categoryId}`, {
+        method: "PATCH",
+        body: { imageFileId },
+      }),
+    onSuccess: async () => {
+      toast.success("تم تحديث صورة التصنيف");
+      setPendingImageFileId("");
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "تعذر تحديث صورة التصنيف"),
   });
   const deleteCategory = useMutation({
     mutationFn: () =>
@@ -1955,22 +2067,108 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
                 </Button>
               </div>
             )}
+            <div className="mt-4 space-y-2 border-t border-border pt-4">
+              <ImageUploadInput
+                label="صورة التصنيف (اختياري)"
+                value={pendingImageFileId}
+                onChange={setPendingImageFileId}
+                purpose="CATEGORY_IMAGE"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  disabled={!pendingImageFileId || updateCategoryImage.isPending}
+                  onClick={() => updateCategoryImage.mutate(pendingImageFileId)}
+                >
+                  حفظ الصورة
+                </Button>
+                {row.imageUrl ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline-danger"
+                    disabled={updateCategoryImage.isPending}
+                    onClick={() => updateCategoryImage.mutate(null)}
+                  >
+                    إزالة الصورة الحالية
+                  </Button>
+                ) : null}
+              </div>
+            </div>
           </SectionCard>
         </>
       ) : null}
       {row ? (
         <>
           <SimpleCreateForm
-            title="إضافة خاصية تصنيف"
-            pending={createAttribute.isPending}
-            onSubmit={() => createAttribute.mutate()}
+            title={editingAttribute ? `تعديل الخاصية: ${text(editingAttribute.key)}` : "إضافة خاصية تصنيف"}
+            pending={createAttribute.isPending || updateAttribute.isPending}
+            onSubmit={() => {
+              if (!validateAttrForm()) return;
+              if (editingAttribute) updateAttribute.mutate(idOf(editingAttribute));
+              else createAttribute.mutate();
+            }}
             fields={[
-              { label: "المفتاح", value: attrKey, onChange: setAttrKey, required: true, placeholder: "color" },
+              ...(editingAttribute
+                ? []
+                : [{ label: "المفتاح", value: attrKey, onChange: setAttrKey, required: true, placeholder: "color" }]),
               { label: "العنوان", value: attrLabel, onChange: setAttrLabel, required: true },
-              { label: "النوع", value: attrType, onChange: setAttrType, required: true, placeholder: "STRING / ENUM / INT" },
               { label: "الوحدة", value: attrUnit, onChange: setAttrUnit },
-              { label: "خيارات ENUM مفصولة بفواصل", value: attrOptions, onChange: setAttrOptions },
+              { label: "خيارات ENUM مفصولة بفواصل", value: attrOptions, onChange: setAttrOptions, placeholder: "أحمر, أزرق, أخضر" },
             ]}
+            extra={
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField label="النوع" required>
+                  {(props) => (
+                    <FormSelect
+                      {...props}
+                      value={attrType}
+                      onChange={(event) => setAttrType(event.target.value)}
+                    >
+                      <option value="STRING">STRING — نص</option>
+                      <option value="ENUM">ENUM — قائمة خيارات</option>
+                      <option value="INT">INT — رقم صحيح</option>
+                      <option value="DECIMAL">DECIMAL — رقم عشري</option>
+                      <option value="BOOL">BOOL — نعم / لا</option>
+                    </FormSelect>
+                  )}
+                </FormField>
+                <div className="space-y-2">
+                  <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
+                    <span className="text-sm font-semibold text-ink-strong">
+                      محور متغيّرات (مثل اللون / المقاس)
+                      <span className="block text-xs font-normal text-ink-muted">
+                        عند التفعيل سيظهر للبائع خطوة المتغيرات لمنتجات هذا التصنيف
+                      </span>
+                    </span>
+                    <Switch
+                      checked={attrIsVariantAxis}
+                      onCheckedChange={(checked) => {
+                        setAttrIsVariantAxis(checked);
+                        if (checked) setAttrType("ENUM");
+                      }}
+                    />
+                  </label>
+                  <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
+                    <span className="text-sm font-semibold text-ink-strong">إلزامية</span>
+                    <Switch checked={attrIsRequired} onCheckedChange={setAttrIsRequired} />
+                  </label>
+                  <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
+                    <span className="text-sm font-semibold text-ink-strong">قابلة للفلترة</span>
+                    <Switch checked={attrIsFilterable} onCheckedChange={setAttrIsFilterable} />
+                  </label>
+                </div>
+              </div>
+            }
+            actions={
+              editingAttribute ? (
+                <Button type="button" size="sm" variant="secondary" onClick={resetAttrForm}>
+                  إلغاء التعديل
+                </Button>
+              ) : null
+            }
           />
           <SectionCard title="خصائص التصنيف">
             {attributes.isLoading ? (
@@ -1987,25 +2185,36 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
                   { id: "flags", header: "الاستخدام", cell: (attr) => <div className="text-xs text-ink-strong">{attr.isFilterable ? "فلتر" : "بدون فلتر"} · {attr.isVariantAxis ? "محور متغير" : "خاصية منتج"} · {attr.isRequired ? "إجباري" : "اختياري"}</div> },
                   { id: "options", header: "الخيارات", cell: (attr) => Array.isArray(attr.options) ? attr.options.join(", ") : text(attr.options) },
                   { id: "actions", header: "إجراء", cell: (attr) => (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-danger"
-                      disabled={deleteAttribute.isPending}
-                      onClick={async () => {
-                        const result = await confirm({
-                          title: "حذف الخاصية",
-                          description: "سيتم حذف هذه الخاصية نهائياً. هذا الإجراء لا يمكن التراجع عنه.",
-                          confirmLabel: "حذف",
-                          variant: "danger",
-                          requireReason: true,
-                          reasonLabel: "سبب الحذف",
-                        });
-                        if (result.confirmed) deleteAttribute.mutate(idOf(attr));
-                      }}
-                    >
-                      حذف
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={updateAttribute.isPending}
+                        onClick={() => startEditingAttribute(attr)}
+                      >
+                        تعديل
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-danger"
+                        disabled={deleteAttribute.isPending}
+                        onClick={async () => {
+                          const result = await confirm({
+                            title: "حذف الخاصية",
+                            description: "سيتم حذف هذه الخاصية نهائياً. هذا الإجراء لا يمكن التراجع عنه.",
+                            confirmLabel: "حذف",
+                            variant: "danger",
+                            requireReason: true,
+                            reasonLabel: "سبب الحذف",
+                          });
+                          if (result.confirmed) deleteAttribute.mutate(idOf(attr));
+                        }}
+                      >
+                        حذف
+                      </Button>
+                    </div>
                   ) },
                 ]}
               />
@@ -2014,38 +2223,6 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
         </>
       ) : null}
       {confirmElement}
-    </div>
-  );
-}
-
-export function PromotionsPage() {
-  const queryClient = useQueryClient();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [valueBps, setValueBps] = useState("1000");
-  const create = useMutation({
-    mutationFn: () => adminApi("/api/admin/admin/promotions", { method: "POST", body: { code, name: { ar: name, en: name }, discountType: "PERCENTAGE", scope: "PLATFORM", valueBps: Number(valueBps), validFrom: new Date().toISOString(), status: "ACTIVE" } }),
-    onSuccess: async () => { toast.success("تم إنشاء العرض"); setCode(""); setName(""); await queryClient.invalidateQueries({ queryKey: ["/api/admin/admin/promotions"] }); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر إنشاء العرض"),
-  });
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="العروض"
-        description="إدارة كوبونات المنصة والعروض التسويقية."
-        actions={
-          <Link href="/promotions/create" className="inline-flex h-10 items-center rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition hover:-translate-y-0.5">
-            إنشاء عرض
-          </Link>
-        }
-      />
-      <SimpleCreateForm title="إضافة عرض نسبة مئوية" pending={create.isPending} onSubmit={() => create.mutate()} fields={[{ label: "الكود", value: code, onChange: setCode, required: true }, { label: "الاسم", value: name, onChange: setName, required: true }, { label: "النسبة بالنقاط BPS", value: valueBps, onChange: setValueBps, required: true }]} />
-      <ResourceList<AnyRecord> title="قائمة العروض" description="" path="/api/admin/admin/promotions" columns={[
-        { id: "name", header: "العرض", cell: (r) => <div><Link href={`/promotions/${idOf(r)}`} className="font-medium text-primary hover:underline">{localizedText(r.name, text(r.code), "ar")}</Link><div className="text-xs text-ink-muted">{text(r.code)}</div></div> },
-        { id: "status", header: "الحالة", cell: (r) => <StatusBadge status={text(r.status, "UNKNOWN")} /> },
-        { id: "discount", header: "الخصم", cell: (r) => text(r.discountType) },
-        { id: "dates", header: "الصلاحية", cell: (r) => <div>{formatDate(r.validFrom)}<br />{formatDate(r.validUntil)}</div> },
-      ]} />
     </div>
   );
 }
