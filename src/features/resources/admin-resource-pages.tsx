@@ -1792,6 +1792,53 @@ export function CatalogPage() {
   );
 }
 
+/** One editable ENUM option: a stable `value` plus its bilingual label. */
+type EnumOptionRow = { value: string; ar: string; en: string };
+
+/**
+ * Parse stored ENUM options into editable rows. Handles the canonical
+ * `{value, label:{ar,en}}` shape (what the seller wizard + buyer variant
+ * picker expect) as well as legacy bare scalars saved by the old editor.
+ */
+function enumOptionsToRows(options: unknown): EnumOptionRow[] {
+  if (!Array.isArray(options)) return [];
+  return options.map((option) => {
+    if (option && typeof option === "object") {
+      const record = option as AnyRecord;
+      const label = record.label && typeof record.label === "object" ? (record.label as AnyRecord) : {};
+      const value =
+        typeof record.value === "string" || typeof record.value === "number"
+          ? String(record.value)
+          : "";
+      return {
+        value,
+        ar: typeof label.ar === "string" ? label.ar : "",
+        en: typeof label.en === "string" ? label.en : "",
+      };
+    }
+    const scalar = option == null ? "" : String(option);
+    return { value: scalar, ar: scalar, en: scalar };
+  });
+}
+
+/**
+ * Build the canonical `{value, label:{ar,en}}` options from editor rows.
+ * A blank `value` is derived from the English (then Arabic) label so variants
+ * always key off a stable code; blank labels fall back across locales.
+ */
+function rowsToEnumOptions(rows: EnumOptionRow[]): Array<{ value: string; label: { ar: string; en: string } }> {
+  return rows
+    .map((row) => ({ value: row.value.trim(), ar: row.ar.trim(), en: row.en.trim() }))
+    .filter((row) => row.value || row.ar || row.en)
+    .map((row) => {
+      const value =
+        row.value ||
+        row.en.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") ||
+        row.ar;
+      return { value, label: { ar: row.ar || row.en || value, en: row.en || row.ar || value } };
+    });
+}
+
 export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
   const queryClient = useQueryClient();
   const { confirm, element: confirmElement } = useConfirmDialog();
@@ -1799,7 +1846,7 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
   const [attrLabel, setAttrLabel] = useState("");
   const [attrType, setAttrType] = useState("STRING");
   const [attrUnit, setAttrUnit] = useState("");
-  const [attrOptions, setAttrOptions] = useState("");
+  const [attrOptionRows, setAttrOptionRows] = useState<EnumOptionRow[]>([]);
   const [attrIsVariantAxis, setAttrIsVariantAxis] = useState(false);
   const [attrIsRequired, setAttrIsRequired] = useState(false);
   const [attrIsFilterable, setAttrIsFilterable] = useState(true);
@@ -1813,7 +1860,7 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
     setAttrLabel("");
     setAttrType("STRING");
     setAttrUnit("");
-    setAttrOptions("");
+    setAttrOptionRows([]);
     setAttrIsVariantAxis(false);
     setAttrIsRequired(false);
     setAttrIsFilterable(true);
@@ -1826,17 +1873,18 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
     setAttrLabel(localizedText(attr.labelI18n, text(attr.key, ""), "ar"));
     setAttrType(text(attr.dataType, "STRING"));
     setAttrUnit(attr.unit ? String(attr.unit) : "");
-    setAttrOptions(Array.isArray(attr.options) ? attr.options.join(", ") : "");
+    setAttrOptionRows(enumOptionsToRows(attr.options));
     setAttrIsVariantAxis(attr.isVariantAxis === true);
     setAttrIsRequired(attr.isRequired === true);
     setAttrIsFilterable(attr.isFilterable !== false);
   }
 
   function parsedAttrOptions() {
-    return attrOptions
-      .split(",")
-      .map((option) => option.trim())
-      .filter(Boolean);
+    return rowsToEnumOptions(attrOptionRows);
+  }
+
+  function updateAttrOptionRow(index: number, patch: Partial<EnumOptionRow>) {
+    setAttrOptionRows((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
 
   // The Flutter seller wizard only surfaces variant axes that are ENUM with
@@ -1848,7 +1896,7 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
       return false;
     }
     if (attrType === "ENUM" && parsedAttrOptions().length === 0) {
-      toast.error("أدخل خيارات ENUM مفصولة بفواصل");
+      toast.error("أضف خياراً واحداً على الأقل لقائمة ENUM");
       return false;
     }
     return true;
@@ -2116,9 +2164,70 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
                 : [{ label: "المفتاح", value: attrKey, onChange: setAttrKey, required: true, placeholder: "color" }]),
               { label: "العنوان", value: attrLabel, onChange: setAttrLabel, required: true },
               { label: "الوحدة", value: attrUnit, onChange: setAttrUnit },
-              { label: "خيارات ENUM مفصولة بفواصل", value: attrOptions, onChange: setAttrOptions, placeholder: "أحمر, أزرق, أخضر" },
             ]}
             extra={
+              <div className="space-y-3">
+              {attrType === "ENUM" ? (
+                <div className="space-y-2 rounded-xl border border-border bg-card p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-ink-strong">
+                      خيارات القائمة
+                      <span className="block text-xs font-normal text-ink-muted">
+                        لكل خيار: قيمة ثابتة (رمز إنجليزي) + الاسم بالعربية والإنجليزية — تُستخدم لتسمية متغيرات المنتج للمشتري
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setAttrOptionRows((rows) => [...rows, { value: "", ar: "", en: "" }])}
+                    >
+                      + خيار
+                    </Button>
+                  </div>
+                  {attrOptionRows.length === 0 ? (
+                    <p className="text-xs text-ink-muted">لا توجد خيارات بعد. اضغط «+ خيار» لإضافة أول خيار (مثل: red / أحمر / Red).</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="hidden gap-2 px-1 text-xs font-semibold text-ink-muted md:grid md:grid-cols-[1fr_1fr_1fr_auto]">
+                        <span>القيمة (رمز إنجليزي)</span>
+                        <span>الاسم بالعربية</span>
+                        <span>الاسم بالإنجليزية</span>
+                        <span className="w-14" />
+                      </div>
+                      {attrOptionRows.map((row, index) => (
+                        <div key={index} className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">
+                          <FormInput
+                            dir="ltr"
+                            placeholder="red"
+                            value={row.value}
+                            onChange={(event) => updateAttrOptionRow(index, { value: event.target.value })}
+                          />
+                          <FormInput
+                            placeholder="أحمر"
+                            value={row.ar}
+                            onChange={(event) => updateAttrOptionRow(index, { ar: event.target.value })}
+                          />
+                          <FormInput
+                            dir="ltr"
+                            placeholder="Red"
+                            value={row.en}
+                            onChange={(event) => updateAttrOptionRow(index, { en: event.target.value })}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline-danger"
+                            onClick={() => setAttrOptionRows((rows) => rows.filter((_, i) => i !== index))}
+                          >
+                            حذف
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
               <div className="grid gap-3 md:grid-cols-2">
                 <FormField label="النوع" required>
                   {(props) => (
@@ -2161,6 +2270,7 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
                   </label>
                 </div>
               </div>
+              </div>
             }
             actions={
               editingAttribute ? (
@@ -2183,7 +2293,7 @@ export function CategoryDetailPage({ categoryId }: { categoryId: string }) {
                   { id: "key", header: "المفتاح", cell: (attr) => <div><div className="font-medium text-ink-strong">{text(attr.key)}</div><div className="text-xs text-ink-muted">{localizedText(attr.labelI18n, text(attr.key), "ar")}</div></div> },
                   { id: "type", header: "النوع", cell: (attr) => text(attr.dataType) },
                   { id: "flags", header: "الاستخدام", cell: (attr) => <div className="text-xs text-ink-strong">{attr.isFilterable ? "فلتر" : "بدون فلتر"} · {attr.isVariantAxis ? "محور متغير" : "خاصية منتج"} · {attr.isRequired ? "إجباري" : "اختياري"}</div> },
-                  { id: "options", header: "الخيارات", cell: (attr) => Array.isArray(attr.options) ? attr.options.join(", ") : text(attr.options) },
+                  { id: "options", header: "الخيارات", cell: (attr) => Array.isArray(attr.options) ? attr.options.map((option) => (option && typeof option === "object" ? localizedText((option as AnyRecord).label, text((option as AnyRecord).value, ""), "ar") : String(option))).filter(Boolean).join("، ") : text(attr.options) },
                   { id: "actions", header: "إجراء", cell: (attr) => (
                     <div className="flex items-center gap-2">
                       <Button
