@@ -222,11 +222,7 @@ function ProviderCard({
             <span>•</span>
             <span>المحافظ: {provider.walletEnabled ? "مفعلة" : "متوقفة"}</span>
           </div>
-        ) : (
-          <p className="rounded-xl bg-warning-soft px-3 py-2 text-xs font-bold text-warning">
-            لن تظهر Kashier داخل تطبيق الهاتف في هذا الإصدار.
-          </p>
-        )}
+        ) : null}
         <div className="flex gap-2">
           <Button
             type="button"
@@ -392,11 +388,7 @@ function ProviderEditorDialog({
                 <ToggleRow label="الدفع بالبطاقات" description="يحتاج Card Integration ID" checked={cardEnabled} onChange={(value) => form.setValue("cardEnabled", value, { shouldDirty: true })} />
                 <ToggleRow label="الدفع بالمحافظ" description="يحتاج Wallet Integration ID" checked={walletEnabled} onChange={(value) => form.setValue("walletEnabled", value, { shouldDirty: true })} />
               </div>
-            ) : (
-              <div className="rounded-2xl border border-warning/30 bg-warning-soft p-4 text-sm font-bold text-warning">
-                يتم حفظ بيانات Kashier مشفرة للتجهيز فقط، ولن تظهر كطريقة دفع للعملاء.
-              </div>
-            )}
+            ) : null}
 
             <div className="grid gap-4 md:grid-cols-2">
               {isPaymob ? (
