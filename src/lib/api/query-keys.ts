@@ -84,6 +84,7 @@ export const queryKeys = {
   vendorShippingRates: (vendorId: string) =>
     ["vendors", vendorId, "shipping-rates"] as const,
   adminSettings: ["settings"] as const,
+  paymentProviders: ["settings", "payment-providers"] as const,
   adminQueues: ["ops", "queues"] as const,
   bulkOrders: (params: Record<string, string | undefined>) =>
     ["bulk-orders", params] as const,

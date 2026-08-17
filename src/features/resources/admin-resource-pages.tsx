@@ -1356,11 +1356,13 @@ function CatalogTabContent<T extends AnyRecord>({
   searchValue: string;
 }) {
   const [cursor, setCursor] = useState<string | undefined>();
-  // Reset to the first page whenever the search term changes, so a stale cursor
-  // from prior paging doesn't scope the search to a partial window.
-  useEffect(() => {
+  const [previousSearchValue, setPreviousSearchValue] = useState(searchValue);
+  // Reset to the first page whenever the search term changes. The guarded
+  // previous-value pattern avoids an effect-driven cascading render.
+  if (previousSearchValue !== searchValue) {
+    setPreviousSearchValue(searchValue);
     setCursor(undefined);
-  }, [searchValue]);
+  }
   const params = { limit: "20", cursor, ...(query ?? {}) };
   const url = withQuery(path, params);
   const list = useQuery({

@@ -1,6 +1,28 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Settings", () => {
+  test("super admin can open Paymob and configuration-only Kashier editors", async ({
+    page,
+  }) => {
+    await page.goto("/login");
+    await page.getByLabel("اسم المستخدم / البريد الإلكتروني").fill("admin@yalla.app");
+    await page.getByLabel("كلمة المرور").fill("Password1!");
+    await page.getByRole("button", { name: "تسجيل الدخول" }).click();
+    await page.waitForURL(/\/dashboard/);
+
+    await page.goto("/settings/payments");
+    await expect(page.getByRole("heading", { name: "بوابات الدفع" })).toBeVisible();
+    await expect(page.getByText("الدفع عند الاستلام", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Paymob", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Kashier", { exact: true }).first()).toBeVisible();
+
+    await page.getByRole("button", { name: "تعديل Kashier" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText(/لن تظهر Kashier داخل تطبيق الهاتف|لن تظهر كطريقة دفع/)).toBeVisible();
+    await expect(dialog.getByLabel("Merchant ID")).toBeVisible();
+    await expect(dialog.getByLabel("API Secret")).toBeVisible();
+  });
+
   test("maintenance page opens and the save dialog requires a reason when activating", async ({
     page,
   }) => {

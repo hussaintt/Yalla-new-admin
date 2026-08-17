@@ -195,6 +195,10 @@ export const adminPaths = {
   // Settings & vendor billing
   adminSettings: (params: Record<string, string | undefined> = {}) =>
     withQuery("/api/admin/admin/settings", params),
+  paymentProviders: () => "/api/admin/admin/payment-providers",
+  paymentProvider: (provider: "PAYMOB" | "KASHIER") =>
+    `/api/admin/admin/payment-providers/${provider}`,
+  validatePaymob: () => "/api/admin/admin/payment-providers/paymob/validate",
   vendorBillingRun: () => "/api/admin/admin/vendor-billing/run",
   // Shipping
   shippingZones: (params: Record<string, string | undefined> = {}) =>

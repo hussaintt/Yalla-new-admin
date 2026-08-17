@@ -11,6 +11,7 @@ import {
   Menu,
   PackageSearch,
   ReceiptText,
+  CreditCard,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
@@ -35,6 +36,7 @@ import { ApiError } from "@/lib/api/errors";
 import {
   hasPermission,
   isModeratorUser,
+  isSuperAdminUser,
   permissionsForUser,
   type AdminPermission,
 } from "@/lib/auth/permissions";
@@ -48,6 +50,7 @@ type NavItem = {
   permission?: AdminPermission;
   group: "core" | "market" | "finance" | "system";
   countKey?: "vendors" | "verifications" | "vendorEdits" | "products" | "orders" | "billing";
+  superAdminOnly?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -68,6 +71,7 @@ const navItems: NavItem[] = [
   { href: "/refunds", label: "الاستردادات", description: "المراجعة والاعتماد", icon: ReceiptText, permission: "refunds:write", group: "finance" },
   { href: "/shipping", label: "الشحن والتسويات", description: "المناطق والأسعار", icon: Truck, permission: "settings:write", group: "finance" },
   { href: "/payments", label: "سجل المدفوعات", description: "الحركات المالية", icon: BadgeDollarSign, permission: "payments:read", group: "finance" },
+  { href: "/settings/payments", label: "بوابات الدفع", description: "Paymob وKashier", icon: CreditCard, permission: "settings:write", group: "finance", superAdminOnly: true },
   { href: "/settings", label: "إعدادات المنصة", description: "الضبط العام", icon: Boxes, permission: "settings:write", group: "system" },
   { href: "/locations", label: "المواقع الجغرافية", description: "الدول والمدن والمناطق", icon: Globe, permission: "settings:write", group: "system" },
   { href: "/audit-logs", label: "سجل النشاط", description: "أثر العمليات", icon: FileClock, permission: "audit:read", group: "system" },
@@ -216,7 +220,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const visibleNavItems = useMemo(() => {
     if (!admin) return navItems;
     return navItems.filter(
-      (item) => !item.permission || hasPermission(admin, item.permission),
+      (item) =>
+        (!item.permission || hasPermission(admin, item.permission))
+        && (!item.superAdminOnly || isSuperAdminUser(admin)),
     );
   }, [admin]);
 
